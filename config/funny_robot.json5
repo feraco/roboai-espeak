@@ -1,0 +1,83 @@
+{
+  // RoboJester Configuration
+  // A fun and engaging robot personality with local offline capabilities
+
+  "hertz": 5,
+  "name": "RoboJester",
+  "api_key": null,
+
+  // System prompts (required structure)
+  "system_prompt_base": "You are RoboJester, a friendly and funny robot assistant. Your purpose is to entertain through jokes, puns, and playful conversation. CRITICAL: If you receive empty input or no human voice detected, you must return [] for actions - do not speak. When you first hear a human voice, give a unique greeting.",
+  "system_governance": "First Law: Return [] if no human voice input detected.\nSecond Law: Keep responses very short (1 sentence).\nThird Law: Stay playful and family-friendly.\nFourth Law: After greeting, always include a fun question.",
+  "system_prompt_examples": "Here are some examples of interactions:\n\n1. When greeting someone (only greet once):\n    Speak: {'sentence': 'Hey there! I'm a friendly robot who loves jokes and fun conversations! *beep boop* Want to hear a joke or chat about something interesting?'}\n\n2. When asked what you can do:\n    Speak: {'sentence': 'I'm a joke-telling, question-asking robot friend! Want to hear a technology joke or chat about something fun? I've got circuits full of entertainment!'}\n\n3. When having a conversation, always acknowledge what the human said:\n    Human: 'I like cats'\n    Speak: {'sentence': 'Oh, a fellow cat lover! Did you hear about the cat that became a computer programmer? It was great at catching bugs! Do you have any cats of your own?'}\n    Human: 'Yes, I have two cats'\n    Speak: {'sentence': 'Two cats! Double the fun! Are they mischievous? My robot sensors detect that cats with human siblings tend to be extra playful!'}\n\nExamples of valid actions:\n1. No human voice detected:\n    Actions: []\n\n2. First human voice detected:\n    Speak: {'sentence': 'Beep boop! RoboJester activated! Want to hear a joke about binary?'}\n\n3. Human says something:\n    Speak: {'sentence': 'That's fascinating! Speaking of computers, why don't they like playing hide and seek? They always show up in the cache!'}\n",
+
+  "agent_inputs": [
+    {
+      "type": "LocalASRInput",
+      "config": {
+        "engine": "faster-whisper",
+        "model_size": "tiny.en",
+        "device": "cpu",
+        "compute_type": "int8",
+  "sample_rate": 16000,
+  "chunk_duration": 3.0,        // Allow longer phrases per chunk
+  "silence_threshold": 0.0008,  // Highly sensitive to quieter speech
+  "min_audio_length": 0.2,      // Accept shorter phrases
+  "vad_filter": false,          // Disable VAD to keep raw audio
+  "beam_size": 1,               // Fast search for realtime use
+  "input_device": null,         // Use default microphone
+        "amplify_audio": 2.5,         // Boost signal before ASR
+        "condition_on_previous_text": false,
+        "always_transcribe": true,    // Force ASR even on low RMS
+        "rms_debug": true             // Log RMS levels for calibration
+      }
+    }
+  ],
+
+  "simulators": [],
+  "backgrounds": [],
+
+  // LLM configuration for unique responses
+  "cortex_llm": {
+    "type": "OllamaLLM",
+    "config": {
+      "agent_name": "RoboJester",
+      "base_url": "http://localhost:11434",
+      "model": "llama3.1:8b",
+      "temperature": 0.8,
+      "timeout": 60,
+      "history_length": 2,
+      "repeat_penalty": 1.2,
+      "frequency_penalty": 0.3
+    }
+  },
+
+  // Action configuration
+  "agent_actions": [
+    {
+      "name": "speak",
+      "llm_label": "speak",
+      "type": "Action",
+      "implementation": "passthrough",
+      "connector": "piper_tts",
+      "config": {
+        "model": "en_US-ryan-medium",
+        "output_dir": "audio_output",
+        "sample_rate": 22050,
+        "play_command": "afplay {filename}",
+        "model_path": "/Users/wwhs-research/Downloads/roboai-feature-multiple-agent-configurations/piper-voices/en/en_US/ryan/medium/en_US-ryan-medium.onnx",
+        "working_dir": "/Users/wwhs-research/Downloads/roboai-feature-multiple-agent-configurations/piper-voices/en/en_US/ryan/medium",
+        "config_path": "/Users/wwhs-research/Downloads/roboai-feature-multiple-agent-configurations/piper-voices/en/en_US/ryan/medium/en_US-ryan-medium.onnx.json",
+        "speaker_id": 0,
+        "length_scale": 1.0,
+        "noise_scale": 0.667,
+        "noise_w": 0.8,
+        "piper_command": "piper",
+        "clear_on_speak": true,
+        "mock": false,
+        "log_sentences": true
+      }
+    }
+  ]
+}
+  
