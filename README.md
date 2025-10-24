@@ -1,200 +1,165 @@
-# RoboAI with Funny Robot Configuration
+# RoboAI - Modular AI Agent Runtime
 
-A modular AI runtime that lets you create interactive AI agents. This guide focuses on setting up the Funny Robot configuration - a joke-telling AI companion that uses local speech recognition and text-to-speech.
+A modular AI runtime that lets you create interactive AI agents for robots and virtual assistants. Supports multiple platforms, local and cloud processing, and features like speech recognition, text-to-speech, vision, and robot control.
 
-## Prerequisites
+## 📚 Documentation
 
-### For macOS
-- macOS (tested on Sonoma 14.0+)
-- Python 3.10 or higher
-- [Ollama](https://ollama.ai/) for local LLM support
-- UV package manager (recommended) or pip
+**Complete documentation is now in the [`documentation/`](documentation/) folder:**
 
-### For Ubuntu
-- Ubuntu 22.04 or higher
-- Python 3.10 or higher
-- [Ollama](https://ollama.ai/) for local LLM support
-- UV package manager (recommended) or pip
-- System dependencies (portaudio, ffmpeg)
+- **[📖 Documentation Index](documentation/README.md)** - Full documentation overview
+- **[🚀 Quick Start](documentation/setup/QUICKSTART.md)** - Get started in 5 minutes
+- **[🤖 Ubuntu G1 Deployment](documentation/setup/UBUNTU_G1_DEPLOYMENT.md)** - Complete G1 robot setup
+- **[🔧 Troubleshooting](documentation/troubleshooting/)** - Diagnostic tools and fixes
 
-## Quick Installation
+## 🎯 Quick Links by Platform
 
-### For macOS
+| Platform | Documentation | Description |
+|----------|---------------|-------------|
+| **Ubuntu G1 Robot** | [Ubuntu G1 Deployment](documentation/setup/UBUNTU_G1_DEPLOYMENT.md) | Complete guide with step-by-step troubleshooting |
+| **macOS Development** | [macOS Quick Install](documentation/setup/QUICK_INSTALL_MAC.md) | Local development setup |
+| **Local Offline** | [Local Setup](documentation/setup/LOCAL_SETUP.md) | Fully offline configuration |
 
-1. Clone the repository:
+## 🚀 Quick Start
+
+### Option 1: Ubuntu G1 Robot (Recommended for Production)
+
 ```bash
-git clone https://github.com/feraco/roboai-espeak.git
-cd roboai-espeak
+# See complete guide with troubleshooting:
+# documentation/setup/UBUNTU_G1_DEPLOYMENT.md
+
+cd ~/roboai-espeak
+./documentation/setup/setup_piper_ubuntu.sh
+python3 documentation/troubleshooting/check_g1_hardware.py
+uv run src/run.py astra_vein_receptionist
 ```
 
-2. Install Ollama for local LLM support:
-```bash
-curl -fsSL https://ollama.ai/install.sh | sh
-```
+### Option 2: macOS Development
 
-3. Install the required Ollama model:
 ```bash
-ollama pull gemma2:2b
-```
-
-4. Set up Python environment using UV (recommended):
-```bash
+# Install dependencies
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
+brew install portaudio
+
+# Setup
+uv sync
+ollama pull llama3.1:8b
+
+# Run
+uv run src/run.py local_agent
 ```
 
-Alternative setup using pip:
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### For Ubuntu
-
-1. Install system dependencies:
-```bash
-sudo apt-get update
-sudo apt-get install -y portaudio19-dev python3-dev ffmpeg espeak
-```
-
-2. Clone the repository:
-```bash
-git clone https://github.com/feraco/roboai-espeak.git
-cd roboai-espeak
-```
-
-3. Install Ollama:
-```bash
-curl -fsSL https://ollama.ai/install.sh | sh
-sudo systemctl start ollama  # If using systemd
-```
-
-4. Install the required Ollama model:
-```bash
-ollama pull gemma2:2b
-```
-
-5. Set up Python environment using UV (recommended):
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
-```
-
-Alternative setup using pip:
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-## Running the Funny Robot
-
-1. Ensure Ollama is running:
-```bash
-# Ollama should start automatically after installation
-# If needed, start it manually:
-ollama serve
-```
-
-2. Run the funny robot configuration:
-```bash
-uv run src/run.py funny_robot
-```
-
-or if using pip:
-```bash
-python src/run.py funny_robot
-```
-
-## Configuration Details
-
-The Funny Robot uses the following components:
-
-- **Speech Recognition**: Local ASR using faster-whisper
-- **Text-to-Speech**: Native macOS text-to-speech (no additional installation needed)
-- **Language Model**: Ollama with gemma2:2b model
-- **Personality**: Pre-configured as a friendly, joke-telling robot
-
-The configuration file is located at `config/funny_robot.json5`.
-
-## Troubleshooting
-
-### Running Diagnostics
-
-The project includes a diagnostic tool to help identify and fix common issues:
+### Option 3: Test Camera (Ubuntu)
 
 ```bash
-python scripts/diagnose_audio.py
+# Test your camera before running the agent
+python3 test_camera.py
 ```
 
-This tool will check:
-- System audio output
-- Microphone input
-- Ollama setup and model installation
-- Required Python packages
-- Configuration file settings
+This will test all available cameras and save test images.
 
-### Audio Issues
+## 📋 Testing Hardware
 
-1. No Speech Output:
-   
-   On macOS:
-   - Check System Preferences → Sound → Output
-   - Verify volume is not muted
-   - Test system audio: `say "Testing audio output"`
-   
-   On Ubuntu:
-   - Check Sound Settings in System Settings
-   - Verify volume is not muted
-   - Test system audio: `espeak "Testing audio output"`
-   - Ensure espeak is installed: `sudo apt-get install espeak`
+On **Ubuntu/G1**, test all components before deploying:
 
-2. Speech Recognition Problems:
-   
-   On macOS:
-   - Check System Preferences → Security & Privacy → Microphone
-   - Verify microphone input level in System Preferences → Sound → Input
-   
-   On Ubuntu:
-   - Check Sound Settings → Input in System Settings
-   - Verify microphone permissions: `sudo usermod -a -G audio $USER`
-   - Test microphone: `arecord -d 5 test.wav && aplay test.wav`
-   - Check if microphone is detected: `arecord -l`
+```bash
+# Complete hardware check
+python3 documentation/troubleshooting/check_g1_hardware.py
 
-### LLM Issues
+# Test microphone
+./documentation/troubleshooting/test_ubuntu_mic.sh
 
-1. Ollama Connection Errors:
-   - Verify Ollama is running: `curl http://localhost:11434/api/tags`
-   - Check if model is installed: `ollama list`
-   - Try restarting Ollama: `ollama serve`
+# Test camera
+python3 test_camera.py
 
-2. Model Loading Issues:
-   - Ensure gemma2:2b is installed: `ollama pull gemma2:2b`
-   - Check available memory
-   - Try a different model by editing `config/funny_robot.json5`
-
-## Project Structure
-
-```
-.
-├── config/                  # Configuration files
-│   └── funny_robot.json5    # Funny robot configuration
-├── src/
-│   ├── actions/            # Available actions (speak, move, etc.)
-│   ├── inputs/             # Input handlers (ASR, sensors)
-│   ├── llm/               # Language model connectors
-│   └── run.py             # Main entry point
-├── requirements.txt        # Python dependencies
-└── README.md              # This file
+# Audio diagnostics
+python3 documentation/troubleshooting/diagnose_ubuntu_audio.py
 ```
 
+## 🎛️ Configuration
 
+Agent configurations are in [`config/`](config/):
 
-## License
+- **`astra_vein_receptionist.json5`** - Medical receptionist (G1 production)
+- **`local_agent.json5`** - Local offline agent
+- **`conversation.json5`** - Simple conversation agent
 
-This project is licensed under the terms of the MIT License, which is a permissive free software license that allows users to freely use, modify, and distribute the software. The MIT License is a widely used and well-established license that is known for its simplicity and flexibility. By using the MIT License, this project aims to encourage collaboration, modification, and distribution of the software.
+See [Configuration Guide](documentation/guides/CONFIG_GUIDE.md) for details.
+
+## 🤖 Available Agents
+
+| Agent | Config | Description |
+|-------|--------|-------------|
+| **Astra Vein Receptionist** | `astra_vein_receptionist` | Medical office receptionist with vision |
+| **Local Agent** | `local_agent` | General purpose offline agent |
+| **Conversation** | `conversation` | Simple chat bot |
+
+Run any agent:
+```bash
+uv run src/run.py <config_name>
+```
+
+## 📁 Project Structure
+
+```
+roboai-espeak/
+├── documentation/          # All documentation (organized)
+│   ├── setup/             # Installation guides
+│   ├── guides/            # Integration guides
+│   ├── troubleshooting/   # Diagnostic tools
+│   └── reference/         # Technical references
+├── config/                # Agent configurations
+├── src/                   # Source code
+│   ├── inputs/           # Audio, vision, sensors
+│   ├── connectors/       # LLM, TTS providers
+│   ├── actions/          # Robot actions
+│   └── memory/           # Conversation memory
+├── test_camera.py        # Camera testing tool
+└── README.md            # This file
+```
+
+## 🆘 Troubleshooting
+
+### Quick Fixes
+
+**Microphone not working:**
+```bash
+./documentation/troubleshooting/test_ubuntu_mic.sh
+python3 documentation/troubleshooting/diagnose_ubuntu_audio.py
+```
+
+**Camera not working:**
+```bash
+python3 test_camera.py
+sudo usermod -a -G video $USER  # Then logout/login
+```
+
+**Ollama not running:**
+```bash
+sudo systemctl start ollama
+ollama list  # Verify models
+```
+
+See [Troubleshooting Documentation](documentation/troubleshooting/) for more help.
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+## 📜 License
+
+See [LICENSE](LICENSE) for license information.
+
+## 🌟 Features
+
+- ✅ **Local & Cloud** - Run fully offline or use cloud APIs
+- ✅ **Multi-Platform** - macOS, Ubuntu, Jetson
+- ✅ **Speech Recognition** - Faster-Whisper, OpenAI Whisper
+- ✅ **Text-to-Speech** - Piper, ElevenLabs, Azure
+- ✅ **Vision** - Ollama Vision (LLaVA), camera integration
+- ✅ **Robot Control** - Unitree G1, arm gestures
+- ✅ **Auto-Detection** - Audio devices, sample rates, paths
+- ✅ **Production Ready** - Systemd services, auto-start, monitoring
+
+---
+
+**Need help?** Check the [Documentation Index](documentation/README.md) or open an issue!
