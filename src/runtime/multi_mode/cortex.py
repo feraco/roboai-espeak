@@ -75,6 +75,12 @@ class ModeCortexRuntime:
         self.action_orchestrator = ActionOrchestrator(self.current_config)
         self.simulator_orchestrator = SimulatorOrchestrator(self.current_config)
         self.background_orchestrator = BackgroundOrchestrator(self.current_config)
+        
+        # Set static system context on the LLM (only done once per mode)
+        if hasattr(self.current_config.cortex_llm, 'set_system_context'):
+            system_context = self.fuser.get_system_context()
+            self.current_config.cortex_llm.set_system_context(system_context)
+            logging.info("System context set on LLM for mode '%s' (%d chars)", mode_name, len(system_context))
 
         logging.info(f"Mode '{mode_name}' initialized successfully")
 

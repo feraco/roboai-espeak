@@ -114,6 +114,21 @@ class LLM(T.Generic[R]):
 
         # Set up the IO provider
         self.io_provider = IOProvider()
+    
+    def set_system_context(self, system_context: str) -> None:
+        """
+        Set the static system context (optional method for LLM implementations).
+        
+        This allows LLMs to separate static context (system prompts, rules, actions)
+        from dynamic inputs, improving efficiency by caching static content.
+        
+        Parameters
+        ----------
+        system_context : str
+            The static system prompt, governance, examples, and available actions
+        """
+        # Default implementation does nothing - subclasses can override
+        pass
 
     async def ask(self, prompt: str, messages: T.List[T.Dict[str, str]] = []) -> R:
         """

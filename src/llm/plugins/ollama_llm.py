@@ -66,6 +66,22 @@ class OllamaLLM(LLM[R]):
             system_prompt=f"You are {config.agent_name}, a funny and engaging robot assistant. Remember the conversation context to avoid repeating yourself.",
             summary_command="Considering the new information, write a concise summary of the ongoing conversation."
         )
+        
+        # Store system context (set by cortex)
+        self._system_context: T.Optional[str] = None
+    
+    def set_system_context(self, system_context: str) -> None:
+        """
+        Set the static system context that will be sent as a system message.
+        This should only be called once during initialization.
+        
+        Parameters
+        ----------
+        system_context : str
+            The static system prompt, governance, examples, and actions
+        """
+        self._system_context = system_context
+        logging.info("Ollama LLM: System context set (%d chars)", len(system_context))
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -103,8 +119,14 @@ class OllamaLLM(LLM[R]):
             # Format messages for Ollama
             formatted_messages = []
             
-            # Add system prompt if present
-            if self.history_manager and hasattr(self.history_manager, 'system_prompt'):
+            # Add system context as a system message (sent once, reduces prompt size)
+            if self._system_context:
+                formatted_messages.append({
+                    "role": "system",
+                    "content": self._system_context
+                })
+            elif self.history_manager and hasattr(self.history_manager, 'system_prompt'):
+                # Fallback to history manager system prompt if no context set
                 formatted_messages.append({
                     "role": "system",
                     "content": self.history_manager.system_prompt
@@ -118,7 +140,7 @@ class OllamaLLM(LLM[R]):
                         "content": msg.get("content", "")
                     })
             
-            # Add the current prompt
+            # Add the current prompt (only dynamic inputs now)
             formatted_messages.append({"role": "user", "content": prompt})
             
             # Trim history if too long
@@ -229,7 +251,7 @@ class OllamaLLM(LLM[R]):
         return tools_desc
 
     def _parse_function_calls(self, content: str) -> T.List:
-        """Parse function calls from Ollama response."""
+        """Parse function calls from Ollama response, handling malformed JSON."""
         try:
             # Try to extract JSON from the response
             json_start = content.find("{")
@@ -237,10 +259,21 @@ class OllamaLLM(LLM[R]):
             
             if json_start >= 0 and json_end > json_start:
                 json_str = content[json_start:json_end]
-                parsed = json.loads(json_str)
                 
-                if "function_calls" in parsed:
-                    return convert_function_calls_to_actions(parsed["function_calls"])
+                # Clean up common JSON issues from LLMs
+                # Remove trailing commas before closing braces/brackets
+                json_str = json_str.replace(",]", "]").replace(",}", "}")
+                # Remove trailing commas with whitespace
+                json_str = json_str.replace(", ]", "]").replace(", }", "}")
+                
+                try:
+                    parsed = json.loads(json_str)
+                    
+                    if "function_calls" in parsed:
+                        return convert_function_calls_to_actions(parsed["function_calls"])
+                except json.JSONDecodeError as je:
+                    logging.error(f"JSON decode error after cleanup: {je}")
+                    logging.debug(f"Attempted to parse: {json_str}")
                     
         except Exception as e:
             logging.error(f"Error parsing function calls from Ollama: {e}")

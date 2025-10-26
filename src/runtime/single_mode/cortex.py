@@ -51,6 +51,12 @@ class CortexRuntime:
         self.background_orchestrator = BackgroundOrchestrator(config)
         self.sleep_ticker_provider = SleepTickerProvider()
         self.io_provider = IOProvider()
+        
+        # Set static system context on the LLM (only done once at initialization)
+        if hasattr(config.cortex_llm, 'set_system_context'):
+            system_context = self.fuser.get_system_context()
+            config.cortex_llm.set_system_context(system_context)
+            logging.info("System context set on LLM (%d chars) - will be cached/reused", len(system_context))
 
     async def run(self) -> None:
         """
@@ -134,9 +140,14 @@ class CortexRuntime:
 
         # Combine those inputs into a suitable prompt
         prompt = self.fuser.fuse(self.config.agent_inputs, finished_promises)
+        
+        # Skip if fuser returns None (no actionable input)
+        if prompt is None:
+            return
+            
         logging.info(f"Fused prompt: {prompt}")
         
-        # Skip if no valid input
+        # Skip if no valid input (don't waste LLM tokens on empty prompts)
         if not prompt or prompt.strip() == "":
             if finished_promises:  # If we had input but fusion failed
                 logging.warning(f"No prompt after fusion. ASR buffer: {finished_promises}")

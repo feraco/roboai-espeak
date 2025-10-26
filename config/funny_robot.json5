@@ -46,7 +46,7 @@
       "model": "llama3.1:8b",
       "temperature": 0.8,
       "timeout": 60,
-      "history_length": 2,
+      "history_length": 4,
       "repeat_penalty": 1.2,
       "frequency_penalty": 0.3
     }

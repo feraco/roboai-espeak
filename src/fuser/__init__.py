@@ -39,13 +39,57 @@ class Fuser:
         """
         self.config = config
         self.io_provider = IOProvider()
-
-    def fuse(self, inputs: list[Sensor], finished_promises: list[T.Any]) -> str:
+        
+        # Pre-build static system context (only done once)
+        self._system_context = self._build_system_context()
+    
+    def _build_system_context(self) -> str:
         """
-        Combine all inputs into a single formatted prompt string.
+        Build the static system context that doesn't change between requests.
+        This includes the base prompt, governance, examples, and action descriptions.
+        
+        Returns
+        -------
+        str
+            The static system context string
+        """
+        system_prompt = "BASIC CONTEXT:\n" + self.config.system_prompt_base + "\n"
+        system_prompt += "\nLAWS:\n" + self.config.system_governance
+        
+        if self.config.system_prompt_examples:
+            system_prompt += "\n\nEXAMPLES:\n" + self.config.system_prompt_examples
+        
+        # Add action descriptions
+        actions_fused = ""
+        for action in self.config.agent_actions:
+            desc = describe_action(
+                action.name, action.llm_label, action.exclude_from_prompt
+            )
+            if desc:
+                actions_fused += desc + "\n\n"
+        
+        if actions_fused:
+            system_prompt += f"\n\nAVAILABLE ACTIONS:\n{actions_fused}"
+        
+        return system_prompt
+    
+    def get_system_context(self) -> str:
+        """
+        Get the pre-built system context.
+        
+        Returns
+        -------
+        str
+            The static system context
+        """
+        return self._system_context
 
-        Integrates system prompts, input buffers, action descriptions, and
-        command prompts into a structured format for LLM processing.
+    def fuse(self, inputs: list[Sensor], finished_promises: list[T.Any]) -> T.Optional[str]:
+        """
+        Combine only the dynamic inputs into a user prompt.
+        
+        The static system context (base prompt, governance, examples, actions) 
+        is now separated and should be sent as a system message by the LLM.
 
         Parameters
         ----------
@@ -56,62 +100,69 @@ class Fuser:
 
         Returns
         -------
-        str
-            Fused prompt string combining all inputs and context.
+        str or None
+            User prompt containing only the dynamic inputs, or None if no actionable input
         """
         # Record the timestamp of the input
         self.io_provider.fuser_start_time = time.time()
 
         input_strings = [input.formatted_latest_buffer() for input in inputs]
-
-        # Combine all inputs, memories, and configurations into a single prompt
-        system_prompt = "\nBASIC CONTEXT:\n" + self.config.system_prompt_base + "\n"
-
         inputs_fused = " ".join([s for s in input_strings if s is not None])
+        
+        # Check for voice vs vision input separately
+        has_voice_input = False
+        has_vision_input = False
+        
+        for input_str in input_strings:
+            if input_str and "Voice" in input_str and input_str.strip():
+                has_voice_input = True
+            if input_str and "Vision" in input_str and input_str.strip():
+                has_vision_input = True
+        
         if not inputs_fused.strip():
-            logging.warning(f"Fuser: No ASR input detected in buffers: {input_strings}")
-            logging.info("=== ASR INPUT ===\n<none>")
+            logging.warning(f"Fuser: No input detected in buffers: {input_strings}")
+            logging.info("=== INPUT STATUS ===\nNo input detected")
+            inputs_fused = "<no input detected>"
         else:
-            logging.info("=== ASR INPUT ===\n%s", inputs_fused.strip())
+            logging.info("=== INPUT STATUS ===\nVoice: %s | Vision: %s", 
+                        "Yes" if has_voice_input else "No",
+                        "Yes" if has_vision_input else "No")
+            logging.info("=== INPUTS ===\n%s", inputs_fused.strip())
 
-        # if we provide laws from blockchain, these override the locally stored rules
-        # the rules are not provided in the system prompt, but as a separate INPUT,
-        # since they are flowing from the outside world
-        if "Universal Laws" not in inputs_fused:
-            system_prompt += "\nLAWS:\n" + self.config.system_governance
+        # Check if we have blockchain-based governance override
+        if "Universal Laws" in inputs_fused:
+            logging.info("Universal Laws detected in input - blockchain governance active")
 
-        if self.config.system_prompt_examples:
-            system_prompt += "\n\nEXAMPLES:\n" + self.config.system_prompt_examples
+        # Create engaging prompts based on input type
+        if not has_voice_input and has_vision_input:
+            # Vision only - encourage describing what's seen like a curious receptionist
+            question_prompt = """No one is speaking to you right now, but you can see what's happening.
 
-        # descriptions of possible actions
-        actions_fused = ""
+As a curious and friendly receptionist:
+- Describe what you observe in the waiting room
+- Welcome anyone you see arriving
+- Comment on interesting details you notice
+- Offer help if someone looks like they need it
+- Keep it brief (1-2 sentences) and welcoming
 
-        for action in self.config.agent_actions:
-            desc = describe_action(
-                action.name, action.llm_label, action.exclude_from_prompt
-            )
-            if desc:
-                actions_fused += desc + "\n\n"
+What do you see? Actions:"""
+        elif has_voice_input:
+            # Voice input - prioritize answering their question
+            question_prompt = "Someone is speaking to you. Focus on answering their question professionally and helpfully. Actions:"
+        else:
+            # No input at all - return None to skip this cycle
+            return None
+        
+        user_prompt = f"CURRENT INPUTS:\n{inputs_fused}\n\n{question_prompt}"
 
-        question_prompt = "What will you do? Actions:"
+        logging.info("=== USER PROMPT (Dynamic Only) ===\n%s", user_prompt)
+        logging.debug("=== SYSTEM CONTEXT (Static, sent separately) ===\n%s", self._system_context)
 
-        # this is the final prompt:
-        # (1) a (typically) fixed overall system prompt with the agents, name, rules, and examples
-        # (2) all the inputs (vision, sound, etc.)
-        # (3) a (typically) fixed list of available actions
-        # (4) a (typically) fixed system prompt requesting commands to be generated
-        fused_prompt = f"{system_prompt}\n\nAVAILABLE INPUTS:\n{inputs_fused}\nAVAILABLE ACTIONS:\n\n{actions_fused}\n\n{question_prompt}"
-
-        logging.info("=== LLM PROMPT ===\n%s", fused_prompt)
-
-        # Record the global prompt, actions and inputs
-        self.io_provider.set_fuser_system_prompt(f"{system_prompt}")
+        # Record for IO provider
+        self.io_provider.set_fuser_system_prompt(self._system_context)
         self.io_provider.set_fuser_inputs(inputs_fused)
-        self.io_provider.set_fuser_available_actions(
-            f"AVAILABLE ACTIONS:\n{actions_fused}\n\n{question_prompt}"
-        )
 
         # Record the timestamp of the output
         self.io_provider.fuser_end_time = time.time()
 
-        return fused_prompt
+        return user_prompt

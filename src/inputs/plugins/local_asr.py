@@ -43,7 +43,7 @@ class LocalASRInput(FuserInput[str]):
 
         # Configuration
         self.engine = getattr(self.config, "engine", "openai-whisper")
-        self.sample_rate = getattr(self.config, "sample_rate", 16000)
+        requested_sample_rate = getattr(self.config, "sample_rate", 16000)
         self.chunk_duration = getattr(self.config, "chunk_duration", 5)  # seconds
         self.silence_threshold = getattr(self.config, "silence_threshold", 0.01)
         self.min_audio_length = getattr(self.config, "min_audio_length", 1.0)  # seconds
@@ -53,6 +53,9 @@ class LocalASRInput(FuserInput[str]):
         self.amplify_audio = getattr(self.config, "amplify_audio", 1.0)  # Audio amplification factor
         self.always_transcribe = getattr(self.config, "always_transcribe", False)
         self.rms_debug = getattr(self.config, "rms_debug", False)
+        
+        # Auto-detect supported sample rate if requested rate fails
+        self.sample_rate = self._detect_supported_sample_rate(requested_sample_rate)
         
         # OpenAI configuration
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -87,66 +90,43 @@ class LocalASRInput(FuserInput[str]):
         # Audio processing task will be started when the event loop is available
         self._audio_task = None
 
-    def _resolve_input_device(self, configured_device):
-        """Resolve the configured input device into a concrete sounddevice index."""
+    def _resolve_input_device(self, device_config):
+        """
+        Resolve the input device to use for audio recording.
+        """
+        if device_config is not None:
+            return device_config
+
+        # Auto-select the first available input device
         try:
             import sounddevice as _sd
             devices = _sd.query_devices()
-        except Exception as exc:  # pragma: no cover - defensive logging only
-            logging.warning("LocalASRInput: unable to query audio devices: %s", exc)
-            return configured_device if isinstance(configured_device, int) else None
 
-        # Helper to normalise default tuple -> index
-        def _extract_default_index(default_value):
-            if isinstance(default_value, tuple):
-                return default_value[0]
-            return default_value
-
-        # Direct index provided
-        if isinstance(configured_device, int):
-            if 0 <= configured_device < len(devices):
-                logging.info(
-                    "LocalASRInput: using configured input device %s (%s)",
-                    configured_device,
-                    devices[configured_device]["name"],
-                )
-                return configured_device
-            logging.warning(
-                "LocalASRInput: configured input device index %s out of range", configured_device
-            )
-
-        candidate = None
-
-        if isinstance(configured_device, str):
-            name = configured_device.strip().lower()
-            if name in {"default", "system_default", "auto"}:
-                candidate = _extract_default_index(_sd.default.device)
-            else:
-                for idx, dev in enumerate(devices):
-                    if name in dev.get("name", "").lower() and dev.get("max_input_channels", 0) > 0:
-                        candidate = idx
-                        break
-
-        if candidate is None:
-            default_idx = _extract_default_index(_sd.default.device)
-            if isinstance(default_idx, int) and default_idx >= 0:
-                candidate = default_idx
-
-        if candidate is None:
+            # Find the first input device
             for idx, dev in enumerate(devices):
-                if dev.get("max_input_channels", 0) > 0:
+                if dev["max_input_channels"] > 0:
                     candidate = idx
                     break
+            else:
+                logging.warning("LocalASRInput: no input device found; will try default device (None)")
+                return None
 
-        if candidate is not None and 0 <= candidate < len(devices):
+        except ImportError:
+            logging.warning("LocalASRInput: sounddevice not available; will try default device (None)")
+            return None
+        except Exception as exc:
+            # Unidentifiable error: let recording try default device
+            logging.warning(
+                "LocalASRInput: failed to query devices (%s); will try default (None)", exc
+            )
+            return None
+        else:
+            # Make sure the device has channels (sanity check)
             try:
-                current_default = _sd.default.device
-                output_default = None
-                if isinstance(current_default, tuple):
-                    output_default = current_default[1]
-                _sd.default.device = (candidate, output_default)
-            except Exception:
-                # Fallback silently if we cannot override the default
+                if devices[candidate]["max_input_channels"] <= 0:
+                    logging.warning("LocalASRInput: auto-selected device has no input channels!")
+                    return None
+            except (IndexError, KeyError):
                 pass
 
             logging.info(
@@ -158,6 +138,66 @@ class LocalASRInput(FuserInput[str]):
 
         logging.warning("LocalASRInput: no audio input device could be resolved; recording may fail")
         return None
+
+    def _detect_supported_sample_rate(self, requested_rate: int) -> int:
+        """
+        Detect a supported sample rate for the audio device.
+        Try the requested rate first, then fallback to common rates.
+        
+        Parameters
+        ----------
+        requested_rate : int
+            The desired sample rate from config
+            
+        Returns
+        -------
+        int
+            A supported sample rate
+        """
+        # Common sample rates to try in order of preference
+        # Jetson Orin typically supports: 48000, 44100, 32000, 22050, 11025, 8000
+        common_rates = [requested_rate, 48000, 44100, 32000, 22050, 16000, 11025, 8000]
+        
+        # Remove duplicates while preserving order
+        rates_to_try = []
+        seen = set()
+        for rate in common_rates:
+            if rate not in seen:
+                rates_to_try.append(rate)
+                seen.add(rate)
+        
+        for rate in rates_to_try:
+            try:
+                # Try to create a test stream with this rate
+                test_stream = sd.InputStream(
+                    samplerate=rate,
+                    channels=1,
+                    dtype='float32',
+                    device=self.input_device,
+                    blocksize=1024
+                )
+                test_stream.close()
+                
+                if rate != requested_rate:
+                    logging.warning(
+                        f"LocalASRInput: Requested sample rate {requested_rate} Hz not supported. "
+                        f"Using {rate} Hz instead."
+                    )
+                else:
+                    logging.info(f"LocalASRInput: Using sample rate {rate} Hz")
+                
+                return rate
+                
+            except Exception as e:
+                logging.debug(f"LocalASRInput: Sample rate {rate} Hz not supported: {e}")
+                continue
+        
+        # If all rates fail, default to 48000 (most common on modern hardware)
+        logging.error(
+            f"LocalASRInput: Could not detect supported sample rate. "
+            f"Defaulting to 48000 Hz. Original error: {e}"
+        )
+        return 48000
 
     def _start_audio_processing(self):
         """Start the audio processing loop."""
@@ -298,6 +338,20 @@ class LocalASRInput(FuserInput[str]):
             # Convert bytes to numpy array
             import numpy as np
             audio_array = np.frombuffer(audio_data, dtype=np.float32)
+            
+            # Resample to 16kHz if needed (Whisper expects 16kHz)
+            if self.sample_rate != 16000:
+                try:
+                    import scipy.signal
+                    # Calculate resampling ratio
+                    target_length = int(len(audio_array) * 16000 / self.sample_rate)
+                    audio_array = scipy.signal.resample(audio_array, target_length)
+                    logging.debug(f"Resampled audio from {self.sample_rate} Hz to 16000 Hz")
+                except ImportError:
+                    logging.warning(
+                        f"scipy not available for resampling. Audio is {self.sample_rate} Hz "
+                        f"but Whisper expects 16000 Hz. Install scipy for better accuracy: pip install scipy"
+                    )
             
             # Amplify audio if needed
             if self.amplify_audio > 1.0:

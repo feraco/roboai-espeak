@@ -64,6 +64,22 @@ class OpenAILLM(LLM[R]):
 
         # Initialize history manager
         self.history_manager = LLMHistoryManager(self._config, self._client)
+        
+        # Store system context (set by cortex)
+        self._system_context: T.Optional[str] = None
+    
+    def set_system_context(self, system_context: str) -> None:
+        """
+        Set the static system context that will be sent as a system message.
+        This should only be called once during initialization.
+        
+        Parameters
+        ----------
+        system_context : str
+            The static system prompt, governance, examples, and actions
+        """
+        self._system_context = system_context
+        logging.info("OpenAI LLM: System context set (%d chars)", len(system_context))
 
     @LLMHistoryManager.update_history()
     async def ask(
@@ -92,10 +108,24 @@ class OpenAILLM(LLM[R]):
             self.io_provider.llm_start_time = time.time()
             self.io_provider.set_llm_prompt(prompt)
 
-            formatted_messages = [
-                {"role": msg.get("role", "user"), "content": msg.get("content", "")}
-                for msg in messages
-            ]
+            # Build message list with system context first
+            formatted_messages = []
+            
+            # Add system context as a system message (sent once, cached by API)
+            if self._system_context:
+                formatted_messages.append({
+                    "role": "system",
+                    "content": self._system_context
+                })
+            
+            # Add conversation history
+            for msg in messages:
+                formatted_messages.append({
+                    "role": msg.get("role", "user"),
+                    "content": msg.get("content", "")
+                })
+            
+            # Add current user prompt (only dynamic inputs now)
             formatted_messages.append({"role": "user", "content": prompt})
 
             response = await self._client.chat.completions.create(

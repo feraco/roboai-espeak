@@ -56,6 +56,21 @@ class GeminiLLM(LLM[R]):
 
         # Initialize history manager
         self.history_manager = LLMHistoryManager(self._config, self._client)
+        
+        # Store system context (set by cortex)
+        self._system_context: T.Optional[str] = None
+    
+    def set_system_context(self, system_context: str) -> None:
+        """
+        Set the static system context that will be sent as a system message.
+        
+        Parameters
+        ----------
+        system_context : str
+            The static system prompt, governance, examples, and actions
+        """
+        self._system_context = system_context
+        logging.info("Gemini LLM: System context set (%d chars)", len(system_context))
 
     @LLMHistoryManager.update_history()
     async def ask(self, prompt: str, messages: T.List[T.Dict[str, str]]) -> R | None:
