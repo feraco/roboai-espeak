@@ -151,13 +151,14 @@ def convert_function_calls_to_actions(function_calls: list[dict]) -> list[Action
             else:
                 args = function_args
 
-            # Prefer 'sentence' for speak actions
-            action_value = args.get("action", "")
+            # For speak actions, preserve full args dict (sentence + language)
             if function_name == "speak" and "sentence" in args:
-                action_value = args["sentence"]
+                action_value = args  # Keep both sentence and language
+            else:
+                action_value = args.get("action", "")
 
             # If no 'action' parameter, try other common parameter names
-            if not action_value:
+            if not action_value or action_value == "":
                 for param in ["sentence", "text", "message", "value", "command"]:
                     if param in args:
                         action_value = args[param]

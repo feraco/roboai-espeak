@@ -109,13 +109,23 @@ class Fuser:
         input_strings = [input.formatted_latest_buffer() for input in inputs]
         inputs_fused = " ".join([s for s in input_strings if s is not None])
         
-        # Check for voice vs vision input separately
+        # Check for voice vs vision input separately and extract language
         has_voice_input = False
         has_vision_input = False
+        detected_language = "en"  # Default to English
         
         for input_str in input_strings:
             if input_str and "Voice" in input_str and input_str.strip():
                 has_voice_input = True
+                # Extract language from voice input if present
+                if "[LANG:" in input_str:
+                    try:
+                        lang_start = input_str.index("[LANG:") + 6
+                        lang_end = input_str.index("]", lang_start)
+                        detected_language = input_str[lang_start:lang_end]
+                        logging.info(f"Detected language from voice input: {detected_language}")
+                    except (ValueError, IndexError):
+                        pass  # Keep default language if parsing fails
             if input_str and "Vision" in input_str and input_str.strip():
                 has_vision_input = True
         
@@ -124,19 +134,29 @@ class Fuser:
             logging.info("=== INPUT STATUS ===\nNo input detected")
             inputs_fused = "<no input detected>"
         else:
-            logging.info("=== INPUT STATUS ===\nVoice: %s | Vision: %s", 
+            logging.info("=== INPUT STATUS ===\nVoice: %s | Vision: %s | Language: %s", 
                         "Yes" if has_voice_input else "No",
-                        "Yes" if has_vision_input else "No")
+                        "Yes" if has_vision_input else "No",
+                        detected_language)
             logging.info("=== INPUTS ===\n%s", inputs_fused.strip())
 
         # Check if we have blockchain-based governance override
         if "Universal Laws" in inputs_fused:
             logging.info("Universal Laws detected in input - blockchain governance active")
 
+        # Language-specific response instructions
+        language_instructions = {
+            "en": "Respond in English using natural, professional language.",
+            "es": "Responde en español usando un lenguaje natural y profesional. Use the Spanish TTS voice.",
+            "ru": "Отвечайте на русском языке, используя естественный, профессиональный язык. Use the Russian TTS voice."
+        }
+        
+        lang_instruction = language_instructions.get(detected_language, language_instructions["en"])
+
         # Create engaging prompts based on input type
         if not has_voice_input and has_vision_input:
             # Vision only - encourage describing what's seen like a curious receptionist
-            question_prompt = """No one is speaking to you right now, but you can see what's happening.
+            question_prompt = f"""No one is speaking to you right now, but you can see what's happening.
 
 As a curious and friendly receptionist:
 - Describe what you observe in the waiting room
@@ -145,10 +165,21 @@ As a curious and friendly receptionist:
 - Offer help if someone looks like they need it
 - Keep it brief (1-2 sentences) and welcoming
 
+{lang_instruction}
+
 What do you see? Actions:"""
         elif has_voice_input:
             # Voice input - prioritize answering their question
-            question_prompt = "Someone is speaking to you. Focus on answering their question professionally and helpfully. Actions:"
+            question_prompt = f"""Someone is speaking to you. Focus on answering their question professionally and helpfully.
+
+{lang_instruction}
+
+IMPORTANT: Include the language code in your speak action:
+- For English: {{"speak": {{"sentence": "Your response here", "language": "en"}}}}
+- For Spanish: {{"speak": {{"sentence": "Su respuesta aquí", "language": "es"}}}}
+- For Russian: {{"speak": {{"sentence": "Ваш ответ здесь", "language": "ru"}}}}
+
+Actions:"""
         else:
             # No input at all - return None to skip this cycle
             return None

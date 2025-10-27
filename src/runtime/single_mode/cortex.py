@@ -179,12 +179,18 @@ class CortexRuntime:
         sanitized_actions = []
         for a in output.actions:
             if a.type == 'speak':
-                # Remove NO ACTIONS and ensure value is a string
-                if (a.value or '').strip().upper() == 'NO ACTIONS':
+                # Handle both dict (with language) and string (legacy) values
+                if isinstance(a.value, dict):
+                    sentence = a.value.get('sentence', '')
+                else:
+                    sentence = str(a.value or '')
+                
+                # Remove NO ACTIONS
+                if sentence.strip().upper() == 'NO ACTIONS':
                     continue
-                if not isinstance(a.value, str):
-                    logging.error(f"TTS action value is not a string: {a.value} ({type(a.value)})")
-                    a.value = ""
+                if not sentence.strip():
+                    logging.warning(f"Empty TTS sentence: {a.value}")
+                    continue
             sanitized_actions.append(a)
         logging.info(f"TTS actions: {sanitized_actions}")
 

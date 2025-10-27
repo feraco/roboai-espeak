@@ -126,8 +126,20 @@ class ActionOrchestrator:
         logging.debug(
             f"Calling action {agent_action.llm_label} with type {action.type.lower()} and argument {action.value}"
         )
+        
+        # Handle different value types for speak action
+        if agent_action.llm_label == "speak":
+            if isinstance(action.value, dict):
+                # Full dict with sentence and language
+                input_params = action.value
+            else:
+                # Legacy: just sentence string
+                input_params = {"sentence": action.value, "language": "en"}
+        else:
+            input_params = {"action": action.value}
+            
         input_interface = T.get_type_hints(agent_action.interface)["input"](
-            **{"action": action.value}
+            **input_params
         )
         await agent_action.connector.connect(input_interface)
         return input_interface

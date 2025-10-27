@@ -54,6 +54,11 @@ class LocalASRInput(FuserInput[str]):
         self.always_transcribe = getattr(self.config, "always_transcribe", False)
         self.rms_debug = getattr(self.config, "rms_debug", False)
         
+        # Language detection settings
+        self.detect_language = getattr(self.config, "detect_language", True)  # Enable language detection
+        self.supported_languages = getattr(self.config, "supported_languages", ["en", "es", "ru"])  # Supported languages
+        self.default_language = getattr(self.config, "default_language", "en")  # Default if detection fails
+        
         # Auto-detect supported sample rate if requested rate fails
         self.sample_rate = self._detect_supported_sample_rate(requested_sample_rate)
         
@@ -363,18 +368,31 @@ class LocalASRInput(FuserInput[str]):
             rms = np.sqrt(np.mean(audio_array**2))
             logging.debug(f"Audio RMS level: {rms:.4f}, Amplification: {self.amplify_audio}x")
             
+            # Determine language for transcription
+            language = None if self.detect_language else self.default_language
+            
             # Transcribe with Faster-Whisper
             segments, info = self.faster_whisper_model.transcribe(
                 audio_array,
                 beam_size=getattr(self.config, "beam_size", 5),
-                language="en",
+                language=language,  # None for auto-detection, specific language code otherwise
                 vad_filter=getattr(self.config, "vad_filter", True)
             )
+            
+            # Get detected language
+            detected_language = info.language if hasattr(info, 'language') else self.default_language
             
             # Combine all segments
             text = " ".join([segment.text for segment in segments])
             
-            return text.strip() if text else None
+            if text.strip():
+                # Log detected language
+                logging.info(f"Detected language: {detected_language}")
+                
+                # Return text with language prefix for downstream processing
+                return f"[LANG:{detected_language}] {text.strip()}"
+            else:
+                return None
             
         except Exception as e:
             logging.error(f"Error with Faster-Whisper: {e}")

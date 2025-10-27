@@ -1,3 +1,4 @@
+from typing import Union
 from pydantic import BaseModel, Field
 
 
@@ -9,14 +10,15 @@ class Action(BaseModel):
     ----------
     type : str
         Type of action to execute, such as 'move' or 'speak'
-    value : str
-        The action argument, such as the magnitude of a movement or the sentence to speak
+    value : str | dict
+        The action argument, such as the magnitude of a movement or the sentence to speak.
+        Can be a string for simple actions or a dict for complex actions (e.g., with language parameter).
     """
 
     type: str = Field(
         ..., description="The specific type of action, such as 'move' or 'speak'"
     )
-    value: str = Field(..., description="The action argument")
+    value: Union[str, dict] = Field(..., description="The action argument")
 
 
 class CortexOutputModel(BaseModel):

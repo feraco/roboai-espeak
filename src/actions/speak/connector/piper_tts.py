@@ -12,18 +12,33 @@ from actions.speak.interface import SpeakInput
 
 class PiperTTSConnector(ActionConnector[SpeakInput]):
     """
-    Piper TTS connector for offline text-to-speech synthesis.
+    Piper TTS connector for offline text-to-speech synthesis with multi-language support.
     
-    This connector uses Piper TTS for completely offline speech synthesis.
+    This connector uses Piper TTS for completely offline speech synthesis
+    and automatically selects the appropriate voice model based on the language.
     """
 
     def __init__(self, config: ActionConfig):
         super().__init__(config)
         self.logger = logging.getLogger(__name__)
         
-        # Configuration with safe defaults
-        self.model_path = getattr(config, 'model_path', '/usr/local/share/piper/voices/en_US-lessac-medium.onnx')
-        self.config_path = getattr(config, 'config_path', '/usr/local/share/piper/voices/en_US-lessac-medium.onnx.json')
+        # Language-specific voice models
+        self.voice_models = {
+            "en": {
+                "model": getattr(config, 'model_en', 'en_US-ryan-medium'),
+                "path": getattr(config, 'model_path_en', None),
+            },
+            "es": {
+                "model": getattr(config, 'model_es', 'es_ES-claudia-medium'),
+                "path": getattr(config, 'model_path_es', None),
+            },
+            "ru": {
+                "model": getattr(config, 'model_ru', 'ru_RU-dmitri-medium'),
+                "path": getattr(config, 'model_path_ru', None),
+            }
+        }
+        
+        # Common configuration
         self.speaker_id = getattr(config, 'speaker_id', 0)
         self.length_scale = getattr(config, 'length_scale', 1.0)
         self.noise_scale = getattr(config, 'noise_scale', 0.667)
@@ -31,11 +46,47 @@ class PiperTTSConnector(ActionConnector[SpeakInput]):
         self.sample_rate = getattr(config, 'sample_rate', 22050)
         self.log_sentences = getattr(config, 'log_sentences', False)
         
+        # Auto-detect voice model paths
+        self._detect_voice_paths()
+        
         # Check if Piper is available
         self.piper_available = self._check_piper_availability()
         
         if not self.piper_available:
             self.logger.warning("Piper TTS not available. Speech will be logged only.")
+
+    def _detect_voice_paths(self):
+        """Auto-detect voice model paths in common locations."""
+        search_paths = [
+            "~/piper_voices",
+            "./piper_voices", 
+            "./piper-voices",
+            "/usr/local/share/piper/voices",
+            "~/.local/share/piper/voices"
+        ]
+        
+        for lang, voice_info in self.voice_models.items():
+            if voice_info["path"]:
+                continue  # Already configured
+                
+            model_name = voice_info["model"]
+            
+            # Try to find the model file
+            for search_path in search_paths:
+                expanded_path = os.path.expanduser(search_path)
+                if os.path.exists(expanded_path):
+                    # Look for .onnx file
+                    model_file = os.path.join(expanded_path, f"{model_name}.onnx")
+                    if os.path.exists(model_file):
+                        voice_info["path"] = model_file
+                        self.logger.info(f"Found {lang} voice model: {model_file}")
+                        break
+            
+            if not voice_info["path"]:
+                # Fallback to default English model for missing languages
+                if lang != "en":
+                    self.logger.warning(f"Voice model for {lang} not found, will use English fallback")
+                    voice_info["path"] = self.voice_models["en"]["path"]
 
     def _check_piper_availability(self) -> bool:
         """Check if Piper TTS is available on the system."""
@@ -54,14 +105,16 @@ class PiperTTSConnector(ActionConnector[SpeakInput]):
             except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
                 return False
 
-    def _synthesize_with_piper(self, text: str) -> Optional[str]:
+    def _synthesize_with_piper(self, text: str, language: str = "en") -> Optional[str]:
         """
-        Synthesize speech using Piper TTS.
+        Synthesize speech using Piper TTS with language-specific voice.
         
         Parameters
         ----------
         text : str
             Text to synthesize
+        language : str
+            Language code (en, es, ru)
             
         Returns
         -------
@@ -69,6 +122,17 @@ class PiperTTSConnector(ActionConnector[SpeakInput]):
             Path to the generated audio file, or None if synthesis failed
         """
         try:
+            # Get the appropriate voice model for the language
+            voice_info = self.voice_models.get(language, self.voice_models["en"])
+            model_path = voice_info["path"]
+            
+            if not model_path or not os.path.exists(model_path):
+                self.logger.warning(f"Voice model for language '{language}' not found, using English fallback")
+                model_path = self.voice_models["en"]["path"]
+                if not model_path or not os.path.exists(model_path):
+                    self.logger.error("No voice models available")
+                    return None
+            
             # Resolve working directory and output directory
             working_dir = getattr(self.config, 'working_dir', None)
             output_dir = getattr(self.config, 'output_dir', 'audio_output')
@@ -80,34 +144,30 @@ class PiperTTSConnector(ActionConnector[SpeakInput]):
                 temp_dir = os.path.join(base_dir, output_dir)
             os.makedirs(temp_dir, exist_ok=True)
             output_path = os.path.join(
-                temp_dir, f"speech_{os.getpid()}_{time.time()}.wav"
+                temp_dir, f"speech_{language}_{os.getpid()}_{time.time()}.wav"
             )
 
             # Build Piper command
             piper_cmd = getattr(self.config, 'piper_command', 'piper').split()
-            model = getattr(self.config, 'model', self.model_path)
-            cmd = piper_cmd + ['--model', model]
+            cmd = piper_cmd + ['-m', model_path]
 
-            config_path = getattr(self.config, 'config_path', self.config_path)
-            if config_path:
-                cmd.extend(['--config', config_path])
-
-            # Add output file
-            cmd.extend(['--output-file', output_path])
-            
-            # Debug logging
-            self.logger.info(f"Running Piper command: {' '.join(cmd)}")
+            # Add output file (use -f for Anaconda piper)
+            cmd.extend(['-f', output_path])
             
             # Add optional parameters
             if hasattr(self, 'speaker_id') and self.speaker_id is not None:
-                cmd.extend(['--speaker', str(self.speaker_id)])
+                cmd.extend(['-s', str(self.speaker_id)])
             if hasattr(self, 'length_scale'):
-                cmd.extend(['--length_scale', str(self.length_scale)])
+                cmd.extend(['--length-scale', str(self.length_scale)])
             if hasattr(self, 'noise_scale'):
-                cmd.extend(['--noise_scale', str(self.noise_scale)])
+                cmd.extend(['--noise-scale', str(self.noise_scale)])
             if hasattr(self, 'noise_w'):
-                cmd.extend(['--noise_w', str(self.noise_w)])
+                cmd.extend(['--noise-w-scale', str(self.noise_w)])
 
+            # Debug logging
+            self.logger.info(f"Synthesizing in {language} with model: {model_path}")
+            self.logger.info(f"Running Piper command: {' '.join(cmd)}")
+            
             # Run Piper
             process = subprocess.run(
                 cmd,
@@ -175,24 +235,26 @@ class PiperTTSConnector(ActionConnector[SpeakInput]):
 
     async def connect(self, input_data: SpeakInput) -> None:
         """
-        Process speech synthesis request.
+        Process speech synthesis request with language support.
         
         Parameters
         ----------
         input_data : SpeakInput
-            Input containing the sentence to synthesize
+            Input containing the sentence to synthesize and language
         """
-        sentence = input_data.action
-        self.logger.info(f"Piper TTS speaking: {sentence}")
+        sentence = input_data.sentence
+        language = getattr(input_data, 'language', 'en') or 'en'  # Default to English
+        
+        self.logger.info(f"Piper TTS speaking in {language}: {sentence}")
         if self.log_sentences:
-            self.logger.info("=== TTS OUTPUT ===\n%s", sentence)
+            self.logger.info("=== TTS OUTPUT ===\nLanguage: %s\nText: %s", language, sentence)
 
         if not self.piper_available:
-            self.logger.info(f"[MOCK TTS] Would speak: {sentence}")
+            self.logger.info(f"[MOCK TTS] Would speak in {language}: {sentence}")
             return
 
-        # Synthesize speech
-        audio_path = self._synthesize_with_piper(sentence)
+        # Synthesize speech with appropriate language model
+        audio_path = self._synthesize_with_piper(sentence, language)
 
         if audio_path:
             # Play the audio and wait for completion
