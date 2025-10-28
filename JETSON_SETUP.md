@@ -706,6 +706,137 @@ uv run src/run.py astra_vein_receptionist
 - [ ] **(Optional) CycloneDDS installed**
 - [ ] **(Optional) Ethernet interface configured**
 - [ ] **(Optional) Arm gestures working**
+- [ ] **(Optional) Systemd service created for autostart**
+- [ ] **(Optional) Service enabled and tested**
+
+---
+
+## Step 12: Autostart Agent on Boot (Systemd Service)
+
+Configure the agent to start automatically when the Jetson boots.
+
+### Create the Systemd Service File
+
+```bash
+sudo nano /etc/systemd/system/astra-vein-agent.service
+```
+
+Paste this configuration:
+
+```ini
+[Unit]
+Description=Astra Vein Receptionist Agent
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User=unitree
+Group=unitree
+WorkingDirectory=/home/unitree/roboai/roboai-espeak
+Environment="PATH=/home/unitree/.local/bin:/home/unitree/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/home/unitree/.cargo/bin/uv run src/run.py astra_vein_receptionist
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/home/unitree/roboai/roboai-espeak/logs/agent.log
+StandardError=append:/home/unitree/roboai/roboai-espeak/logs/agent-error.log
+
+# Resource limits (optional - adjust as needed)
+MemoryLimit=2G
+CPUQuota=200%
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Create Log Directory
+
+```bash
+mkdir -p /home/unitree/roboai/roboai-espeak/logs
+```
+
+### Enable and Start the Service
+
+```bash
+# Reload systemd to recognize new service
+sudo systemctl daemon-reload
+
+# Enable service to start on boot
+sudo systemctl enable astra-vein-agent.service
+
+# Start the service now
+sudo systemctl start astra-vein-agent.service
+
+# Check service status
+sudo systemctl status astra-vein-agent.service
+```
+
+### Managing the Service
+
+```bash
+# Stop the service
+sudo systemctl stop astra-vein-agent.service
+
+# Restart the service (after config changes)
+sudo systemctl restart astra-vein-agent.service
+
+# View real-time logs
+sudo journalctl -u astra-vein-agent.service -f
+
+# View logs from file
+tail -f /home/unitree/roboai/roboai-espeak/logs/agent.log
+tail -f /home/unitree/roboai/roboai-espeak/logs/agent-error.log
+```
+
+### Troubleshooting Autostart
+
+**Service fails to start:**
+```bash
+# Check detailed status
+sudo systemctl status astra-vein-agent.service -l
+
+# Check journal for errors
+sudo journalctl -u astra-vein-agent.service -n 50 --no-pager
+
+# Verify UV is in path
+which uv
+
+# Test manually as unitree user
+sudo -u unitree bash -c 'cd /home/unitree/roboai/roboai-espeak && uv run src/run.py astra_vein_receptionist'
+```
+
+**Agent starts but crashes:**
+- Check logs in `/home/unitree/roboai/roboai-espeak/logs/`
+- Verify Ollama is running: `systemctl status ollama`
+- Check microphone device: `python test_microphone.py`
+- Verify config has correct `input_device` number
+
+**Permission issues:**
+```bash
+# Ensure unitree user owns the project
+sudo chown -R unitree:unitree /home/unitree/roboai/roboai-espeak
+
+# Check audio group membership
+groups unitree
+# Should include 'audio' group - if not:
+sudo usermod -a -G audio unitree
+```
+
+**Service starts but Ollama not ready:**
+- The service waits for `ollama.service` but Ollama models take time to load
+- If agent fails due to Ollama connection, increase `RestartSec=10` to `RestartSec=30`
+
+### Disable Autostart (if needed)
+
+```bash
+# Stop and disable service
+sudo systemctl stop astra-vein-agent.service
+sudo systemctl disable astra-vein-agent.service
+```
 
 ---
 
