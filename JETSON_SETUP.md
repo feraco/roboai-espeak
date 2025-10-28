@@ -240,7 +240,68 @@ arecord -d 3 -f cd test.wav && aplay test.wav
 
 ---
 
-## Step 10: Configure Agent (Optional)
+## Step 10: Find Your Microphone Device Number ⚠️ IMPORTANT
+
+On Jetson, auto-detection (`input_device: null`) often **fails**. You must manually specify the device number.
+
+### Find Available Audio Devices
+
+```bash
+cd ~/roboai-espeak
+
+# Method 1: Use test script (RECOMMENDED)
+uv run python test_microphone.py
+
+# Method 2: Use Python directly
+uv run python -c "import sounddevice as sd; print(sd.query_devices())"
+
+# Method 3: Use ALSA tools
+arecord -l
+```
+
+**Example output from test_microphone.py:**
+```
+Available Audio Devices:
+  0: HDA Intel PCH: ALC897 Analog (hw:0,0) - ALSA (2 in, 8 out)
+  1: USB Camera: Audio (hw:1,0) - ALSA (1 in, 0 out)  ← Your camera mic!
+  2: bcm2835 Headphones (hw:2,0) - ALSA (0 in, 8 out)
+```
+
+In this example, **device 1** is the camera microphone.
+
+### Update Your Config with Device Number
+
+```bash
+nano config/astra_vein_receptionist.json5
+```
+
+Find the `LocalASRInput` section and set `input_device`:
+
+```json5
+{
+  agent_inputs: [
+    {
+      type: "LocalASRInput",
+      config: {
+        engine: "faster-whisper",
+        model_size: "tiny.en",
+        input_device: 1,  // ⚠️ CHANGE THIS TO YOUR DEVICE NUMBER
+        sample_rate: 16000,
+        // ... rest of config
+      }
+    }
+  ]
+}
+```
+
+**Common device numbers on G1:**
+- **Device 0**: Usually the built-in audio or HDMI
+- **Device 1**: Often the USB camera microphone
+- **Device 2+**: Additional USB devices
+
+---
+
+## Step 11: Configure Agent Settings (Optional)
 
 The configuration is already optimized, but you can adjust if needed:
 
@@ -249,6 +310,7 @@ The configuration is already optimized, but you can adjust if needed:
 nano config/astra_vein_receptionist.json5
 
 # Key settings you might adjust:
+# - input_device: 1 (REQUIRED - use device number from above)
 # - sample_rate: 48000 (use what test_jetson_audio.py recommends)
 # - amplify_audio: 3.0 (increase if microphone is too quiet)
 # - chunk_duration: 2.0 (longer = more stable, but slower response)
@@ -264,7 +326,8 @@ nano config/astra_vein_receptionist.json5
       config: {
         engine: "faster-whisper",
         model_size: "tiny.en",      // Fastest for Jetson
-        sample_rate: 48000,         // Auto-detected, but 48000 is common
+        input_device: 1,            // ⚠️ SET YOUR DEVICE NUMBER
+        sample_rate: 16000,         // 16000 is most compatible
         chunk_duration: 2.0,        // 2 seconds
         silence_threshold: 0.03,
         amplify_audio: 3.0,         // Boost quiet mics
@@ -296,7 +359,7 @@ nano config/astra_vein_receptionist.json5
 
 ---
 
-## Step 11: Run the Agent! 🚀
+## Step 12: Run the Agent! 🚀
 
 ```bash
 cd ~/roboai-espeak
@@ -470,6 +533,161 @@ Ctrl+C
 
 ---
 
+## Step 11: Setup G1 Arm Control (Optional - For Unitree G1 Humanoid Robot)
+
+If you want to enable arm gestures on the Unitree G1, follow these steps:
+
+### 11.1: Install Unitree SDK
+
+The G1 arm control requires the official Unitree SDK Python bindings.
+
+```bash
+# Navigate to your home directory
+cd ~
+
+# Clone the Unitree SDK repository
+git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
+
+# Install the SDK
+cd unitree_sdk2_python
+sudo python3 setup.py install
+
+# Verify installation
+python3 -c "from unitree.unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient; print('✅ Unitree SDK installed successfully')"
+```
+
+**Expected output:**
+```
+✅ Unitree SDK installed successfully
+```
+
+### 11.2: Install CycloneDDS (Required for ROS2 Communication)
+
+The Unitree SDK uses DDS (Data Distribution Service) for robot communication.
+
+```bash
+# Install CycloneDDS dependencies
+sudo apt-get install -y \
+    libcyclonedds-dev \
+    cyclonedds-tools
+
+# Verify CycloneDDS
+ddsls  # Should list DDS topics if robot is connected
+```
+
+### 11.3: Configure Ethernet Interface
+
+The G1 communicates over Ethernet. You need to find your Ethernet interface name:
+
+```bash
+# Find your Ethernet interface
+ip addr show | grep -E "^[0-9]+: (en|eth)"
+
+# Common outputs:
+# - eno1 (most common on G1 Jetson)
+# - eth0 (alternative)
+# - enp* (PCIe ethernet)
+```
+
+Note the interface name (e.g., `eno1`) - you'll need this for the config.
+
+### 11.4: Update Agent Configuration
+
+Add the arm action to your `config/astra_vein_receptionist.json5`:
+
+```json5
+{
+  name: "astra_vein_receptionist",
+  unitree_ethernet: "eno1",  // ⚠️ CHANGE TO YOUR ETHERNET INTERFACE
+  
+  // ... existing config ...
+  
+  agent_actions: [
+    {
+      name: "speak",
+      llm_label: "speak",
+      connector: "piper_tts",
+      config: {
+        // ... your TTS config ...
+      }
+    },
+    {
+      name: "arm_g1",
+      llm_label: "arm movement",
+      type: "Action",
+      connector: "unitree_sdk",
+      config: {}
+    }
+  ]
+}
+```
+
+### 11.5: Update System Prompts
+
+Add arm gesture examples to your system prompts:
+
+```json5
+{
+  system_prompt_examples: "Here are some example interactions:
+
+1. If a patient says 'Hello!', you might:
+   Speak: {'sentence': 'Welcome to Astra Vein Treatment Center! How can I help you today?', 'language': 'en'}
+   Arm movement: 'high wave'
+
+2. If a patient says 'Thank you!', you might:
+   Speak: {'sentence': 'You are very welcome! We are here to help.', 'language': 'en'}
+   Arm movement: 'heart'
+
+3. If a patient asks about scheduling:
+   Speak: {'sentence': 'I can help you schedule an appointment. Call us at 347-934-9068.', 'language': 'en'}
+   Arm movement: 'idle'
+
+Available arm gestures: high wave, heart, high five, shake hand, clap, idle"
+}
+```
+
+### 11.6: Test G1 Arm Connection
+
+Before running the full agent, test the arm connection:
+
+```bash
+# Test importing the SDK
+python3 -c "from actions.arm_g1.connector.unitree_sdk import ARMUnitreeSDKConnector; print('✅ Arm connector OK')"
+
+# If successful, run the agent
+uv run src/run.py astra_vein_receptionist
+```
+
+### Available Arm Gestures
+
+| Gesture | When to Use | Example Context |
+|---------|-------------|-----------------|
+| **high wave** | Greeting patients, saying goodbye | "Welcome!" |
+| **heart** | Showing care, gratitude | "Thank you for visiting!" |
+| **high five** | Celebrating good news | "Great choice!" |
+| **shake hand** | Professional greeting | Formal introductions |
+| **clap** | Celebrating progress | "Wonderful decision!" |
+| **idle** | Neutral resting position | Standard responses |
+
+### Troubleshooting G1 Arms
+
+**Issue: "Failed to initialize G1 Arm Action Client"**
+- Check ethernet cable is connected
+- Verify interface name: `ip addr show`
+- Ensure `unitree_ethernet` matches your interface in config
+- Test DDS communication: `ddsls`
+
+**Issue: "ModuleNotFoundError: No module named 'unitree'"**
+- Reinstall SDK: `cd ~/unitree_sdk2_python && sudo python3 setup.py install`
+- Verify: `python3 -c "import unitree; print('OK')"`
+
+**Issue: Arms don't move**
+- Check robot is powered on and in ready state
+- Verify network connection: `ping <robot-ip>`
+- Check logs for "G1 Arm Action Client initialized successfully"
+
+---
+
 ## Summary Checklist
 
 - [ ] UV package manager installed
@@ -482,7 +700,12 @@ Ctrl+C
 - [ ] System rebooted
 - [ ] Audio tests pass (check_jetson_dependencies.py)
 - [ ] Sample rate detected (test_jetson_audio.py)
+- [ ] **Microphone device number configured in config** (input_device: X)
 - [ ] Agent runs successfully
+- [ ] **(Optional) Unitree SDK installed for G1 arms**
+- [ ] **(Optional) CycloneDDS installed**
+- [ ] **(Optional) Ethernet interface configured**
+- [ ] **(Optional) Arm gestures working**
 
 ---
 
