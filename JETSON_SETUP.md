@@ -535,30 +535,68 @@ Ctrl+C
 
 ## Step 11: Setup G1 Arm Control (Optional - For Unitree G1 Humanoid Robot)
 
-If you want to enable arm gestures on the Unitree G1, follow these steps:
+If you want to enable arm gestures on the Unitree G1, follow these steps.
+
+**⚠️ Important for UV Users:**
+Since UV uses an isolated virtual environment (`.venv`), you must install the Unitree SDK **into UV's environment** for it to work with `uv run`. The standard system-wide installation won't be accessible to UV unless you also install it via `uv pip install`.
 
 ### 11.1: Install Unitree SDK
 
 The G1 arm control requires the official Unitree SDK Python bindings.
 
-```bash
-# Navigate to your home directory
-cd ~
+**Important:** The SDK installs system-wide, so you can clone it anywhere (your home directory, `/tmp`, etc.) - the clone location doesn't matter after installation.
 
-# Clone the Unitree SDK repository
+```bash
+# Clone to home directory (or anywhere convenient)
+cd ~
 git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
 
-# Install the SDK
+# Install the SDK system-wide
 cd unitree_sdk2_python
 sudo python3 setup.py install
 
-# Verify installation
-python3 -c "from unitree.unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient; print('✅ Unitree SDK installed successfully')"
+# The SDK is now installed system-wide and accessible from anywhere
+```
+
+**For UV users (IMPORTANT!):**
+
+UV creates an isolated virtual environment (`.venv`), so you need to install the SDK into UV's environment as well:
+
+```bash
+# Navigate to your project directory
+cd ~/roboai-espeak
+
+# Install the SDK into UV's virtual environment
+uv pip install ~/unitree_sdk2_python/
+
+# OR install directly from git
+uv pip install git+https://github.com/unitreerobotics/unitree_sdk2_python.git
+```
+
+**Verify installation with UV:**
+
+```bash
+# Test with UV's Python
+uv run python -c "from unitree.unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient; print('✅ Unitree SDK installed successfully')"
 ```
 
 **Expected output:**
 ```
 ✅ Unitree SDK installed successfully
+```
+
+**Troubleshooting SDK Installation:**
+
+If the above doesn't work, you may need to manually install the SDK into UV's environment:
+
+```bash
+cd ~/unitree_sdk2_python
+source ~/roboai-espeak/.venv/bin/activate  # Activate UV's venv
+python setup.py install
+deactivate
+
+# Test again
+uv run python -c "from unitree.unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient; print('OK')"
 ```
 
 ### 11.2: Install CycloneDDS (Required for ROS2 Communication)
@@ -651,11 +689,38 @@ Available arm gestures: high wave, heart, high five, shake hand, clap, idle"
 Before running the full agent, test the arm connection:
 
 ```bash
-# Test importing the SDK
-python3 -c "from actions.arm_g1.connector.unitree_sdk import ARMUnitreeSDKConnector; print('✅ Arm connector OK')"
+# Test importing the SDK with UV
+uv run python -c "from actions.arm_g1.connector.unitree_sdk import ARMUnitreeSDKConnector; print('✅ Arm connector OK')"
 
-# If successful, run the agent
+# Test the actual G1 arm client (requires robot connected)
+uv run python -c "from unitree.unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient; print('✅ G1 client OK')"
+
+# If both successful, run the agent
 uv run src/run.py astra_vein_receptionist
+```
+
+**Common Issues with UV:**
+
+**Issue: "ModuleNotFoundError: No module named 'unitree'"**
+
+This means the SDK isn't installed in UV's virtual environment. Fix:
+
+```bash
+# Option 1: Install from local clone
+cd ~/unitree_sdk2_python
+uv pip install .
+
+# Option 2: Install from git
+uv pip install git+https://github.com/unitreerobotics/unitree_sdk2_python.git
+
+# Option 3: Manual installation into UV's venv
+source ~/roboai-espeak/.venv/bin/activate
+cd ~/unitree_sdk2_python
+python setup.py install
+deactivate
+
+# Verify
+uv run python -c "import unitree; print('✅ SDK in UV environment')"
 ```
 
 ### Available Arm Gestures
@@ -678,8 +743,22 @@ uv run src/run.py astra_vein_receptionist
 - Test DDS communication: `ddsls`
 
 **Issue: "ModuleNotFoundError: No module named 'unitree'"**
-- Reinstall SDK: `cd ~/unitree_sdk2_python && sudo python3 setup.py install`
-- Verify: `python3 -c "import unitree; print('OK')"`
+- **For UV users**: SDK must be installed in UV's virtual environment
+  ```bash
+  # Install SDK into UV environment
+  uv pip install git+https://github.com/unitreerobotics/unitree_sdk2_python.git
+  
+  # Or from local clone
+  cd ~/unitree_sdk2_python && uv pip install .
+  
+  # Verify
+  uv run python -c "import unitree; print('✅ OK')"
+  ```
+- **For system Python users**: Reinstall SDK system-wide
+  ```bash
+  cd ~/unitree_sdk2_python && sudo python3 setup.py install
+  python3 -c "import unitree; print('✅ OK')"
+  ```
 
 **Issue: Arms don't move**
 - Check robot is powered on and in ready state

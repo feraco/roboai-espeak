@@ -45,6 +45,9 @@ class RuntimeConfig:
     # Optional Ethernet adapter setting for Unitree Robots
     unitree_ethernet: Optional[str] = None
 
+    # Optional external knowledge file path (relative to project root or absolute)
+    knowledge_file: Optional[str] = None
+
     @classmethod
     def load(cls, config_name: str) -> "RuntimeConfig":
         """Load a runtime configuration from a file."""

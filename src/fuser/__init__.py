@@ -1,6 +1,7 @@
 import logging
 import time
 import typing as T
+from pathlib import Path
 
 from actions import describe_action
 from inputs.base import Sensor
@@ -47,6 +48,7 @@ class Fuser:
         """
         Build the static system context that doesn't change between requests.
         This includes the base prompt, governance, examples, and action descriptions.
+        Optionally loads external knowledge files if specified in config.
         
         Returns
         -------
@@ -54,6 +56,14 @@ class Fuser:
             The static system context string
         """
         system_prompt = "BASIC CONTEXT:\n" + self.config.system_prompt_base + "\n"
+        
+        # Load external knowledge file if specified
+        if hasattr(self.config, 'knowledge_file') and self.config.knowledge_file:
+            knowledge_content = self._load_knowledge_file(self.config.knowledge_file)
+            if knowledge_content:
+                system_prompt += f"\n\nKNOWLEDGE BASE:\n{knowledge_content}\n"
+                logging.info(f"Loaded external knowledge from: {self.config.knowledge_file}")
+        
         system_prompt += "\nLAWS:\n" + self.config.system_governance
         
         if self.config.system_prompt_examples:
@@ -72,6 +82,40 @@ class Fuser:
             system_prompt += f"\n\nAVAILABLE ACTIONS:\n{actions_fused}"
         
         return system_prompt
+    
+    def _load_knowledge_file(self, file_path: str) -> T.Optional[str]:
+        """
+        Load external knowledge file content.
+        
+        Parameters
+        ----------
+        file_path : str
+            Path to the knowledge file (relative to project root or absolute).
+            
+        Returns
+        -------
+        str or None
+            The content of the knowledge file, or None if file not found.
+        """
+        try:
+            # Try as absolute path first
+            path = Path(file_path)
+            if not path.is_absolute():
+                # Try relative to project root
+                project_root = Path(__file__).parent.parent.parent
+                path = project_root / file_path
+            
+            if path.exists():
+                with open(path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    logging.info(f"Successfully loaded knowledge file: {path} ({len(content)} chars)")
+                    return content
+            else:
+                logging.warning(f"Knowledge file not found: {path}")
+                return None
+        except Exception as e:
+            logging.error(f"Error loading knowledge file {file_path}: {e}")
+            return None
     
     def get_system_context(self) -> str:
         """

@@ -1,3 +1,4 @@
+// ...existing code...
 {
   name: "astra_vein_receptionist",
   api_key: null,
@@ -40,12 +41,12 @@
         base_url: "http://localhost:11434",
         model: "llava-llama3",
         camera_index: 0,
-        poll_interval: 3.0,
+        poll_interval: 10.0,
         analysis_interval: 10.0,
         timeout: 15,
-        prompt: "In one brief sentence, describe what you see: Is there a person? What are they wearing or doing? Focus on obvious, visible details only.",
+  prompt: "In one brief, positive sentence, describe what you see through the camera. If you see a person, mention something nice or complimentary about them (e.g., their style, smile, or friendly demeanor). Always base your comment on real camera input. If the room is quiet, say something welcoming and upbeat.",
         descriptor: "Vision"
-      }
+     }
     }
     
   ],
@@ -53,14 +54,15 @@
   cortex_llm: {
     "type": "OllamaLLM",
     "config": {
-      "agent_name": "AstraVein receptionist",
-      "base_url": "http://localhost:11434",
-      "model": "llama3.1:8b",
-      "temperature": 0.7,              // Reduced from 0.8 for faster, more focused responses
-      "timeout": 20,                   // Reduced from 60 to 20 - fail fast if slow
-      "history_length": 5,             // Reduced from 10 to 5 - less context = faster
-      "repeat_penalty": 1.3,
-      "frequency_penalty": 0.5
+  "agent_name": "AstraVein receptionist",
+  "base_url": "http://localhost:11434",
+  "model": "llama3.1:8b",
+  "temperature": 0.7,              // Reduced from 0.8 for faster, more focused responses
+  "timeout": 30,                   // Increased to 30 to allow longer responses
+  "history_length": 5,             // Reduced from 10 to 5 - less context = faster
+  "repeat_penalty": 1.3,
+  "frequency_penalty": 0.5,
+  "max_tokens": 256                // Limit response length for concise answers
     }
   },
 
@@ -73,7 +75,16 @@
       "connector": "piper_tts",
       "config": {
         // Multi-language TTS support with native voices
-        "model_en": "en_US-amy-medium",         // English voice (you can change to: ryan, kristin, ljspeech, etc.)
+        "model_en": "en_US-kristin-medium",         // English voice (you can change to: ryan, kristin, ljspeech, etc.)
+  // Available female English Piper voices in piper_voices:
+  // "en_US-amy-medium"      // Amy - clear, professional
+  // "en_US-amy-low"         // Amy - lower pitch
+  // "en_US-kristin-medium"  // Kristin - female, friendly
+  // "en_US-lessac-medium"   // Lessac - expressive, warm
+  // "en_US-hfc_female-medium" // HFC Female - experimental
+  // "en_US-ljspeech-medium" // LJSpeech - female, neutral
+  // "en_US-ljspeech-high"   // LJSpeech - female, higher pitch
+  // "en_US-libritts-high"   // LibriTTS - multi-speaker, set speaker_id (e.g., 200 for female)
         "model_es": "es_ES-davefx-medium",      // Spanish voice (native Spanish pronunciation)
         "model_ru": "ru_RU-dmitri-medium",      // Russian voice (native Russian pronunciation)
         
@@ -87,13 +98,15 @@
         "play_command": null,           // null = auto-detect (afplay on macOS, aplay on Linux)
         "working_dir": null,             // null = auto-detect
         "speaker_id": 0,
-        "length_scale": 1.05,
-        "noise_scale": 0.667,
+  "length_scale": 0.80,  // Slightly slower to ensure full sentences are spoken
+  "noise_scale": 0.55,   // Brighter, more cheerful voice
         "noise_w": 0.8,
         "piper_command": "piper",
         "clear_on_speak": false,
         "mock": false,
-        "log_sentences": true,
+  "log_sentences": true,
+  // Make agent sound happier and more energetic
+  "emotion": "happy"  // Use happy emotion for TTS if supported
         
         // Note: Voice models will be auto-detected in these locations:
         // 1. ~/piper_voices/
@@ -103,8 +116,7 @@
         // 5. ~/.local/share/piper/voices/
       }
     }
-   
-  ],  simulators: [],
-  
-  backgrounds: []
+  ]
+
+  // Optional: Simulators and backgrounds (currently unused)
 }
