@@ -33,16 +33,11 @@
       }
     },
     {
-      "type": "VLMOllamaVision",
-      "config": {
-        "base_url": "http://localhost:11434",
-        "model": "llava-llama3",
-        "camera_index": 0,
-        "poll_interval": 10.0,
-        "analysis_interval": 10.0,
-        "timeout": 15,
-        "prompt": "Describe the person or people you see, focusing on positive, compliment-worthy aspects. Note: professional appearance, style choices, confident demeanor, friendly expressions, interesting clothing or accessories, overall presence. Describe their body language and engagement level. Mention if they look approachable, professional, tech-savvy, or have any standout style elements that could be complimented.",
-        "descriptor": "Person Detection"
+      type: "FaceEmotionCapture", 
+      config: {
+        camera_index: 0,
+        poll_interval: 30.0,
+        descriptor: "Face Detection with Emotion Recognition"
       }
     }
   ],
@@ -51,7 +46,7 @@
     "config": {
       "agent_name": "Lex Channel Chief",
       "base_url": "http://localhost:11434",
-      "model": "llama3.1:8b",
+      "model": "gemma2:2b",
       "temperature": 0.3,
       "timeout": 15,
       "history_length": 5,

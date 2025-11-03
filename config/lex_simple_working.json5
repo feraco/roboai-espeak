@@ -1,0 +1,76 @@
+{
+  name: "lex_simple_working",
+  api_key: null,
+  hertz: 3,
+  system_prompt_base: "You are Lex, a helpful AI assistant. When someone speaks to you, respond briefly and naturally. Always reply using the speak action with proper JSON format.",
+  system_governance: "Respond conversationally and helpfully to voice input.",
+  system_prompt_examples: "CRITICAL: Always include comma after sentence field. Respond exactly like: {\"function_calls\": [{\"function\": {\"name\": \"speak\", \"arguments\": \"{\\\"sentence\\\": \\\"Hello! I can hear you perfectly. How can I help?\\\", \\\"language\\\": \\\"en\\\"}\"}}]}",
+  agent_inputs: [
+    {
+      type: "LocalASRInput",
+      config: {
+        engine: "faster-whisper",
+        model_size: "tiny.en",
+        device: "cpu",
+        compute_type: "int8",
+        sample_rate: 16000,
+        chunk_duration: 2.0,
+        silence_threshold: 0.01,
+        min_audio_length: 0.3,
+        vad_filter: true,
+        beam_size: 1,
+        input_device: null,
+        amplify_audio: 3.0,
+        condition_on_previous_text: false,
+        always_transcribe: false,
+        rms_debug: false,
+        detect_language: false,
+        supported_languages: ["en"],
+        default_language: "en"
+      }
+    }
+  ],
+  cortex_llm: {
+    type: "OllamaLLM", 
+    config: {
+      agent_name: "Lex Simple",
+      base_url: "http://localhost:11434",
+      model: "gemma2:2b",
+      temperature: 0.1,
+      timeout: 30,
+      max_tokens: 40,
+      num_predict: 30,
+      options: {
+        temperature: 0.1,
+        top_p: 0.9,
+        repeat_penalty: 1.1
+      }
+    }
+  },
+  agent_actions: [
+    {
+      name: "speak",
+      llm_label: "speak", 
+      type: "Action",
+      implementation: "passthrough",
+      connector: "piper_tts",
+      config: {
+        model_en: "en_US-ryan-medium",
+        output_dir: "audio_output",
+        sample_rate: 22050,
+        play_command: null,
+        working_dir: null,
+        speaker_id: 0,
+        length_scale: 0.9,
+        noise_scale: 0.667,
+        noise_w: 0.8,
+        sentence_silence: 0.3,
+        piper_path: null,
+        default_language: "en",
+        volume: 1.0
+      }
+    }
+  ],
+  simulators: [],
+  backgrounds: []
+}

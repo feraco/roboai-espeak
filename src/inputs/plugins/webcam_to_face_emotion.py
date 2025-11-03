@@ -80,6 +80,10 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
 
         # Initialize emotion label
         self.emotion = ""
+        
+        # Track previous state to detect changes
+        self.previous_has_person = False
+        self.previous_emotion = ""
 
         # Messages buffer
         self.messages: list[Message] = []
@@ -100,7 +104,7 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
             ret, frame = self.cap.read()
             return frame
 
-    async def _raw_to_text(self, raw_input: cv2.typing.MatLike) -> Message:
+    async def _raw_to_text(self, raw_input: cv2.typing.MatLike) -> Optional[Message]:
         """
         Process video frame for emotion detection.
 
@@ -146,14 +150,18 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
             # Determine the dominant emotion
             self.emotion = result[0]["dominant_emotion"]
 
+        # Only report when we actually see a person
         if self.emotion == "":
-            message = "I do not see anyone, so I can't estimate their emotion."
+            # No face detected - don't report anything
+            return None
         else:
             message = f"I see a person. Their emotion is {self.emotion}."
-
-        logging.info(f"EmotionCapture: {message}")
-
-        return Message(timestamp=time.time(), message=message)
+            logging.info(f"EmotionCapture: {message}")
+            
+            # Reset emotion for next frame
+            self.emotion = ""
+            
+            return Message(timestamp=time.time(), message=message)
 
     async def raw_to_text(self, raw_input: cv2.typing.MatLike):
         """
@@ -184,7 +192,7 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
         latest_message = self.messages[-1]
 
         result = f"""
-{self.__class__.__name__} INPUT
+{self.__class__.__name__} Vision INPUT
 // START
 {latest_message.message}
 // END

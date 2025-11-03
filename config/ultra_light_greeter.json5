@@ -1,0 +1,53 @@
+{
+  name: "ultra_light_greeter",
+  api_key: null,
+  hertz: 2,
+  system_prompt_base: "You are Lex, Channel Chief for Lexful. When someone appears on camera, introduce yourself briefly and warmly.",
+  system_governance: "Greet people when they appear. Be professional and welcoming.",
+  system_prompt_examples: "When face detected: {\"speak\": {\"sentence\": \"Hello! I'm Lex, Channel Chief for Lexful. Welcome!\", \"language\": \"en\"}}",
+  agent_inputs: [
+    {
+      type: "VLMDummyLocal",
+      config: {
+        camera_index: 0,
+        poll_interval: 5.0,
+        descriptor: "Ultra Light Detection - No AI Models"
+      }
+    }
+  ],
+  cortex_llm: {
+    type: "OllamaLLM", 
+    config: {
+      agent_name: "Ultra Light Greeter",
+      base_url: "http://localhost:11434",
+      model: "gemma2:2b",
+      temperature: 0.1,
+      timeout: 30,
+      max_tokens: 50,
+      num_predict: 40,
+      options: {
+        temperature: 0.1,
+        top_p: 0.9,
+        repeat_penalty: 1.1
+      }
+    }
+  },
+  agent_actions: [
+    {
+      name: "speak",
+      llm_label: "speak", 
+      type: "Action",
+      implementation: "passthrough",
+      connector: "piper_tts",
+      config: {
+        model_en: "en_US-ryan-medium",
+        output_dir: "audio_output",
+        sample_rate: 22050,
+        default_language: "en",
+        volume: 1.0
+      }
+    }
+  ],
+  simulators: [],
+  backgrounds: []
+}

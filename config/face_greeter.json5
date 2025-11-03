@@ -1,0 +1,61 @@
+{
+  name: "face_greeter",
+  api_key: null,
+  hertz: 2,
+  system_prompt_base: "You are Lex, Channel Chief for Lexful. When you detect a face through the camera, introduce yourself warmly and professionally. Be brief and welcoming.",
+  system_governance: "Always greet people when they appear on camera. Be professional and friendly.",
+  system_prompt_examples: "When face detected, respond like: {\"speak\": {\"sentence\": \"Hello! I'm Lex, Channel Chief for Lexful. Welcome! How can I help you today?\", \"language\": \"en\"}}",
+  agent_inputs: [
+    {
+      type: "FaceEmotionCapture",
+      config: {
+        camera_index: 0,
+        poll_interval: 3.0,
+        descriptor: "Face Detection and Emotion - Auto Greeting"
+      }
+    }
+  ],
+  cortex_llm: {
+    type: "OllamaLLM", 
+    config: {
+      agent_name: "Lex Face Greeter",
+      base_url: "http://localhost:11434",
+      model: "gemma2:2b",
+      temperature: 0.2,
+      timeout: 30,
+      max_tokens: 80,
+      num_predict: 60,
+      options: {
+        temperature: 0.2,
+        top_p: 0.9,
+        repeat_penalty: 1.1
+      }
+    }
+  },
+  agent_actions: [
+    {
+      name: "speak",
+      llm_label: "speak", 
+      type: "Action",
+      implementation: "passthrough",
+      connector: "piper_tts",
+      config: {
+        model_en: "en_US-ryan-medium",
+        output_dir: "audio_output",
+        sample_rate: 22050,
+        play_command: null,
+        working_dir: null,
+        speaker_id: 0,
+        length_scale: 0.9,
+        noise_scale: 0.667,
+        noise_w: 0.8,
+        sentence_silence: 0.3,
+        piper_path: null,
+        default_language: "en",
+        volume: 1.0
+      }
+    }
+  ],
+  simulators: [],
+  backgrounds: []
+}

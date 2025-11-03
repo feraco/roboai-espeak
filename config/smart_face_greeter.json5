@@ -1,0 +1,69 @@
+{
+  name: "smart_face_greeter",
+  api_key: null,
+  hertz: 1, // Lower frequency to reduce duplicate processing
+  
+  system_prompt_base: "You are Lex, Channel Chief for Lexful. When you detect a person's face for the first time or notice an emotion change, introduce yourself warmly and mention their emotional state. Keep greetings brief (1-2 sentences max).",
+  
+  system_governance: "Rules:\n1. ONLY speak when you see 'I see a person' in the face detection input\n2. Do NOT speak when you see 'I do not see anyone'\n3. Greet warmly and mention the detected emotion\n4. Keep it conversational and brief",
+  
+  system_prompt_examples: "Example responses:\n- When seeing happy person: {\"speak\": {\"sentence\": \"Hello! I'm Lex from Lexful. You look happy today! How can I help you?\", \"language\": \"en\"}}\n- When seeing neutral person: {\"speak\": {\"sentence\": \"Hi there! I'm Lex, Channel Chief for Lexful. Welcome!\", \"language\": \"en\"}}\n- When no one detected: {\"no_action\": \"waiting\"}",
+  
+  agent_inputs: [
+    {
+      type: "FaceEmotionCapture",
+      config: {
+        camera_index: 0,
+        poll_interval: 2.0, // Check every 2 seconds
+        descriptor: "Face and Emotion Detection"
+      }
+    }
+  ],
+  
+  cortex_llm: {
+    type: "OllamaLLM", 
+    config: {
+      agent_name: "Lex Smart Face Greeter",
+      base_url: "http://localhost:11434",
+      model: "gemma2:2b",  // Lightweight 1.6GB model
+      temperature: 0.7,  // More conversational
+      timeout: 30,
+      max_tokens: 100,
+      num_predict: 80,
+      options: {
+        temperature: 0.7,
+        top_p: 0.9,
+        repeat_penalty: 1.2  // Avoid repetition
+      }
+    }
+  },
+  
+  agent_actions: [
+    {
+      name: "speak",
+      llm_label: "speak", 
+      type: "Action",
+      implementation: "passthrough",
+      connector: "piper_tts",
+      config: {
+        model_en: "en_US-ryan-medium",
+        output_dir: "audio_output",
+        sample_rate: 22050,
+        play_command: null,
+        working_dir: null,
+        speaker_id: 0,
+        length_scale: 0.9,
+        noise_scale: 0.667,
+        noise_w_scale: 0.8
+      }
+    },
+    {
+      name: "no_action",
+      llm_label: "no_action",
+      type: "Action", 
+      implementation: "passthrough",
+      connector: "no_action",
+      config: {}
+    }
+  ]
+}
