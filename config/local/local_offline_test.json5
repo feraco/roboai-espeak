@@ -1,0 +1,65 @@
+{
+  "hertz": 1,
+  "name": "LocalAI-Test",
+  "api_key": null,
+  
+  // System prompts
+  "system_prompt_base": "You are a helpful virtual assistant.",
+  "system_governance": "Here are the laws that govern your actions. Do not violate these laws.\nFirst Law: Be helpful and friendly.\nSecond Law: Keep responses clear and concise.\nThird Law: Be respectful and professional.",
+  "system_prompt_examples": "Here are some examples of interactions:\n\n1. If someone says 'Hello', you might:\n    Speak: {'sentence': 'Hello! How can I help you today?'}\n\n2. If someone asks 'What can you do?', you might:\n    Speak: {'sentence': 'I can have conversations and assist with questions and tasks.'}\n\n3. If someone says 'Goodbye', you might:\n    Speak: {'sentence': 'Goodbye! Have a great day!'}\n",
+  
+  // Input configuration - Faster-Whisper ASR (local)
+  "agent_inputs": [
+    {
+      "type": "LocalASRInput",
+      "config": {
+        "engine": "faster-whisper",
+        "model_size": "base",
+        "device": "cpu",
+        "compute_type": "int8",
+        "sample_rate": 16000,
+        "chunk_duration": 2,
+        "silence_threshold": 0.01,
+        "min_audio_length": 0.5
+      }
+    }
+  ],
+  
+  // LLM configuration - Ollama (local)
+  "cortex_llm": {
+    "type": "OllamaLLM",
+    "config": {
+      "agent_name": "LocalAI-Test",
+      "base_url": "http://localhost:11434",
+      "model": "llama3.1:8b",
+      "temperature": 0.7,
+      "num_predict": 500,
+      "timeout": 120,
+      "history_length": 8
+    }
+  },
+  
+  // Action configuration - Piper TTS (local)  
+  "agent_actions": [
+    {
+      "name": "speak",
+      "llm_label": "speak",
+      "implementation": "passthrough", 
+      "URID": "espeak_test",
+      "connector": "espeak_tts",
+      "config": {
+        "mock": false,
+        "voice": "en-us",
+        "rate": 150,
+        "volume": 100,
+        "pitch": 60
+      }
+    }
+  ],
+
+  // Simulators (required but can be empty)
+  "simulators": [],
+  
+  // Background processes (optional) 
+  "backgrounds": []
+}

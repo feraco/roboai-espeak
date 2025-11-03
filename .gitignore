@@ -17,6 +17,25 @@ wheels/
 
 # IDE
 .vscode/
+.idea/
+
+# Large binary files and voice models
+*.onnx
+*.onnx.json
+piper_voices/*.onnx
+piper_voices/*.onnx.json
+
+# Audio output
+audio_output/
+tmp_audio/
+
+# Control system files
+.lex_control_info
+
+# Backup files
+*.bak
+*.backup
+pyproject.toml.backup
 
 # Debug files
 front_image.jpg

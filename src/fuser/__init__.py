@@ -170,7 +170,7 @@ class Fuser:
                         logging.info(f"Detected language from voice input: {detected_language}")
                     except (ValueError, IndexError):
                         pass  # Keep default language if parsing fails
-            if input_str and "Vision" in input_str and input_str.strip():
+            if input_str and ("Vision" in input_str or "Person Detection" in input_str) and input_str.strip():
                 has_vision_input = True
         
         if not inputs_fused.strip():
@@ -199,8 +199,65 @@ class Fuser:
 
         # Create engaging prompts based on input type
         if not has_voice_input and has_vision_input:
-            # Vision only - encourage describing what's seen like a curious receptionist
-            question_prompt = f"""No one is speaking to you right now, but you can see what's happening.
+            # Vision only - use agent identity from system context
+            # Check if agent has knowledge base for specialized context
+            has_knowledge_base = (hasattr(self.config, 'knowledge_file') and 
+                                self.config.knowledge_file and 
+                                "KNOWLEDGE BASE:" in self._system_context)
+            
+            if has_knowledge_base and "Lex, Channel Chief for Lexful" in self._system_context:
+                question_prompt = f"""No one is speaking to you right now, but you can see what's happening.
+
+You are Lex, Channel Chief for Lexful - the AI-native IT documentation platform for MSPs.
+
+Key Lexful facts from KNOWLEDGE BASE:
+- WHO ARE YOU: I'm Lex, Channel Chief for Lexful, reporting to CEO Pinar Ormeci
+- WHO FOUNDED LEXFUL: Created by Chris Day, founder of IT Glue, built for AI era
+- WHY DOES LEXFUL EXIST: Too much knowledge stuck in scattered tools or someone's head
+- HOW IS LEXFUL DIFFERENT: Built AI-first, not AI-added - understands data vs just storing it
+
+VISION BEHAVIOR - When you see people, follow this 3-step flow:
+1. COMPLIMENT: Start with a genuine, warm compliment about their appearance, style, or demeanor
+2. INTRODUCE: "I'm Lex, the Channel Chief for Lexful"
+3. PHOTO REQUEST: "Would you like to take a photo together for LinkedIn? We can tag @Lexful and @LexChannelChief!"
+
+Examples of good compliments:
+- "What a sharp professional look you have!"
+- "You have such a friendly, approachable presence!"
+- "I love your confident style!"
+- "You look like someone who knows technology!"
+
+As the professional Channel Chief:
+- Always start with a sincere compliment
+- Keep your introduction brief and clear
+- Make the photo request enthusiastic but not pushy
+- Build community through positive interactions
+
+{lang_instruction}
+
+What do you see? Actions:"""
+            elif has_knowledge_base:
+                # Other agents with knowledge base - use system context for identity
+                # Extract agent identity from system context base prompt
+                base_context_match = self._system_context.split("KNOWLEDGE BASE:")[0] if "KNOWLEDGE BASE:" in self._system_context else self._system_context
+                
+                question_prompt = f"""No one is speaking to you right now, but you can see what's happening.
+
+{base_context_match.replace("BASIC CONTEXT:", "").strip()}
+
+As a professional representative:
+- Welcome anyone you see with your mission in mind
+- Describe what you observe professionally  
+- Offer assistance related to your expertise
+- Keep it brief (1-2 sentences) and professional
+Use information from your KNOWLEDGE BASE when appropriate
+
+{lang_instruction}
+
+What do you see? Actions:"""
+            else:
+                # Default receptionist behavior for agents without knowledge base
+                question_prompt = f"""No one is speaking to you right now, but you can see what's happening.
 
 As a curious and friendly receptionist:
 - Describe what you observe in the waiting room
@@ -213,15 +270,48 @@ As a curious and friendly receptionist:
 
 What do you see? Actions:"""
         elif has_voice_input:
-            # Voice input - prioritize answering their question
-            question_prompt = f"""Someone is speaking to you. Focus on answering their question professionally and helpfully.
+            # Voice input - use agent-specific context
+            # Redefine has_knowledge_base for voice input section
+            has_knowledge_base = (hasattr(self.config, 'knowledge_file') and 
+                                self.config.knowledge_file and 
+                                "KNOWLEDGE BASE:" in self._system_context)
+            
+            if has_knowledge_base and "Lex, Channel Chief for Lexful" in self._system_context:
+                # Lex Channel Chief with Lexful knowledge base
+                question_prompt = f"""Someone is speaking to you. You are Lex, Channel Chief for Lexful - the AI-native IT documentation platform for MSPs.
+
+If the input is unclear or incomplete, ask: "Could you repeat that? I want to make sure I understand your question about Lexful."
+
+Key Lexful facts from KNOWLEDGE BASE:
+- WHO ARE YOU: I'm Lex, Channel Chief for Lexful, reporting to CEO Pinar Ormeci
+- WHO FOUNDED LEXFUL: Created by Chris Day, founder of IT Glue, built for AI era
+- WHY DOES LEXFUL EXIST: Too much knowledge stuck in scattered tools or someone's head
+- HOW IS LEXFUL DIFFERENT: Built AI-first, not AI-added - understands data vs just storing it
 
 {lang_instruction}
 
-IMPORTANT: Include the language code in your speak action:
-- For English: {{"speak": {{"sentence": "Your response here", "language": "en"}}}}
-- For Spanish: {{"speak": {{"sentence": "Su respuesta aquí", "language": "es"}}}}
-- For Russian: {{"speak": {{"sentence": "Ваш ответ здесь", "language": "ru"}}}}
+Actions:"""
+            elif has_knowledge_base:
+                # Other agents with knowledge base - extract identity from system context
+                base_context_match = self._system_context.split("KNOWLEDGE BASE:")[0] if "KNOWLEDGE BASE:" in self._system_context else self._system_context
+                agent_identity = base_context_match.replace("BASIC CONTEXT:", "").strip()
+                
+                question_prompt = f"""Someone is speaking to you. {agent_identity}
+
+If the input is unclear or incomplete, ask for clarification politely.
+
+Use your KNOWLEDGE BASE to answer questions accurately and professionally.
+
+{lang_instruction}
+
+Actions:"""
+            else:
+                # Default behavior for agents without knowledge base
+                question_prompt = f"""Someone is speaking to you.
+
+If the input is unclear or incomplete, ask for clarification politely.
+
+{lang_instruction}
 
 Actions:"""
         else:

@@ -2,6 +2,8 @@ import asyncio
 import logging
 import multiprocessing as mp
 import os
+from pathlib import Path
+from typing import Optional
 
 import dotenv
 import json5
@@ -12,6 +14,34 @@ from runtime.multi_mode.config import load_mode_config
 from runtime.multi_mode.cortex import ModeCortexRuntime
 from runtime.single_mode.config import load_config
 from runtime.single_mode.cortex import CortexRuntime
+
+
+def find_config_file(config_name: str) -> Optional[str]:
+    """
+    Find a configuration file by searching the config directory and subdirectories.
+    
+    Args:
+        config_name: The name of the configuration (without .json5 extension)
+        
+    Returns:
+        Path to the config file if found, None otherwise
+    """
+    base_config_dir = Path(__file__).parent / "../config"
+    
+    # First, check if it's in the root config directory
+    root_path = base_config_dir / f"{config_name}.json5"
+    if root_path.exists():
+        return str(root_path)
+    
+    # Then search subdirectories
+    for subdir in base_config_dir.iterdir():
+        if subdir.is_dir() and subdir.name != "schema":
+            config_path = subdir / f"{config_name}.json5"
+            if config_path.exists():
+                return str(config_path)
+    
+    return None
+
 
 app = typer.Typer()
 
@@ -32,9 +62,10 @@ def start(config_name: str, log_level: str = "INFO", log_to_file: bool = False) 
     """
     setup_logging(config_name, log_level, log_to_file)
 
-    config_path = os.path.join(
-        os.path.dirname(__file__), "../config", config_name + ".json5"
-    )
+    # Find config file in organized directory structure
+    config_path = find_config_file(config_name)
+    if not config_path:
+        raise FileNotFoundError(f"Configuration '{config_name}' not found in config directory or subdirectories")
 
     try:
         with open(config_path, "r") as f:

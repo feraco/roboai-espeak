@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="info-grid">
+    <div class="info-card">
+        <h3>🔄 Agent Status</h3>
+        <div class="status-badge {{ 'status-running' if is_running else 'status-stopped' }}">
+            {{ 'Running' if is_running else 'Stopped' }}
+        </div>
+        {% if is_running and pid %}
+        <p><strong>PID:</strong> {{ pid }}</p>
+        {% endif %}
+        {% if uptime %}
+        <p><strong>Uptime:</strong> {{ uptime }}</p>
+        {% endif %}
+    </div>
+    
+    <div class="info-card">
+        <h3>⚙️ Configuration</h3>
+        <p><strong>Agent:</strong> {{ config.name }}</p>
+        <p><strong>Hertz:</strong> {{ config.hertz }}</p>
+        <p><strong>LLM:</strong> {{ config.cortex_llm.type }}</p>
+        {% if config.knowledge_file %}
+        <p><strong>Knowledge:</strong> ✅ External file</p>
+        {% else %}
+        <p><strong>Knowledge:</strong> System prompts only</p>
+        {% endif %}
+    </div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    {% if is_running %}
+    <button onclick="confirmAction('/stop', 'stop')" class="btn btn-danger" style="font-size: 18px; padding: 15px 30px;">
+        🛑 Stop Agent
+    </button>
+    <button onclick="confirmAction('/restart', 'restart')" class="btn" style="font-size: 18px; padding: 15px 30px; margin-left: 10px;">
+        🔄 Restart Agent
+    </button>
+    {% else %}
+    <button onclick="confirmAction('/start', 'start')" class="btn btn-success" style="font-size: 18px; padding: 15px 30px;">
+        🚀 Start Agent
+    </button>
+    {% endif %}
+    
+    <a href="/logs" class="btn" style="margin-left: 20px;">📝 View Logs</a>
+    <a href="/config" class="btn">⚙️ Configuration</a>
+</div>
+
+<script>
+let actionInProgress = false;
+
+function confirmAction(url, actionType) {
+    // Prevent double-clicks
+    if (actionInProgress) {
+        alert('An action is already in progress. Please wait...');
+        return;
+    }
+    
+    // Confirm the action
+    const messages = {
+        'start': 'Are you sure you want to start Lex Channel Chief?',
+        'stop': 'Are you sure you want to stop Lex Channel Chief?', 
+        'restart': 'Are you sure you want to restart Lex Channel Chief? This will briefly stop the agent.'
+    };
+    
+    if (!confirm(messages[actionType])) {
+        return;
+    }
+    
+    // Set loading state
+    actionInProgress = true;
+    const buttons = document.querySelectorAll('button');
+    buttons.forEach(btn => {
+        btn.disabled = true;
+        btn.style.opacity = '0.6';
+    });
+    
+    // Show loading message with timeout fallback
+    const loadingDiv = document.createElement('div');
+    loadingDiv.id = 'loading';
+    loadingDiv.style.cssText = `
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        background: white; border: 3px solid #667eea; border-radius: 10px;
+        padding: 20px; font-size: 18px; z-index: 1000; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    `;
+    loadingDiv.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-size: 24px; margin-bottom: 10px;">⏳</div>
+            <div>Processing ${actionType}...</div>
+            <div style="font-size: 14px; color: #666; margin-top: 5px;">Please wait, this may take a few seconds</div>
+        </div>
+    `;
+    document.body.appendChild(loadingDiv);
+    
+    // Add timeout to prevent infinite loading
+    setTimeout(() => {
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.remove();
+            actionInProgress = false;
+            // Re-enable buttons
+            buttons.forEach(btn => {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            });
+            alert('Action took too long. Please refresh the page and try again.');
+        }
+    }, 15000); // 15 second timeout
+    
+    // Navigate to action URL
+    window.location.href = url;
+}</script>
+
+<div class="info-card">
+    <h3>📊 System Information</h3>
+    <p><strong>OM1 Structure:</strong> {{ '✅ Valid' if valid_structure else '❌ Invalid' }}</p>
+    <p><strong>Config Valid:</strong> {{ '✅ Yes' if valid_config else '❌ No' }}</p>
+    {% if memory_mb %}
+    <p><strong>Memory Usage:</strong> {{ memory_mb }}MB</p>
+    {% endif %}
+    {% if cpu_percent %}
+    <p><strong>CPU Usage:</strong> {{ cpu_percent }}%</p>
+    {% endif %}
+</div>
+
+<script>
+// Auto-refresh only if no action is in progress
+if (!actionInProgress) {
+    setTimeout(() => {
+        if (!actionInProgress) {
+            window.location.reload();
+        }
+    }, 8000);  // Slower refresh to be less aggressive
+}
+</script>
+{% endblock %}

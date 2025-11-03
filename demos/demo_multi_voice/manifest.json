@@ -1,0 +1,217 @@
+{
+  "generated_at": "2025-10-28 07:56:00",
+  "voices": {
+    "amy": {
+      "description": "Amy - Clear, professional female voice (default)",
+      "model": "en_US-amy-medium",
+      "speaker_id": 0,
+      "files": [
+        {
+          "conversation_id": "01_welcome",
+          "file": "demo_multi_voice/amy_01_welcome.wav",
+          "question": "Hello, I'm new here. What services do you offer?",
+          "response": "Welcome to Astra Vein Treatment Center! We specialize in diagnosing and treating various vein and vascular conditions, including varicose veins, spider veins, and circulation problems."
+        },
+        {
+          "conversation_id": "02_office_hours",
+          "file": "demo_multi_voice/amy_02_office_hours.wav",
+          "question": "What are your office hours?",
+          "response": "Our office hours are Monday to Friday from 9:00 AM to 6:00 PM. We're closed on Saturdays and Sundays."
+        },
+        {
+          "conversation_id": "03_location",
+          "file": "demo_multi_voice/amy_03_location.wav",
+          "question": "Where are you located? I'm in Brooklyn.",
+          "response": "We have three locations in the NYC area, but our Brooklyn office is conveniently located at 4209A Avenue U. You're already close by!"
+        },
+        {
+          "conversation_id": "04_phone",
+          "file": "demo_multi_voice/amy_04_phone.wav",
+          "question": "What's your phone number?",
+          "response": "You can reach our main office at 3 4 7 9 3 4 9 0 6 8. Our staff will be happy to assist you."
+        },
+        {
+          "conversation_id": "05_doctor",
+          "file": "demo_multi_voice/amy_05_doctor.wav",
+          "question": "Who is the doctor?",
+          "response": "Our main doctor is Dr. George Bolotin, MD, an interventional radiologist who specializes in vein and vascular conditions."
+        }
+      ]
+    },
+    "lessac": {
+      "description": "Lessac - Warm, expressive female voice",
+      "model": "en_US-lessac-medium",
+      "speaker_id": 0,
+      "files": [
+        {
+          "conversation_id": "01_welcome",
+          "file": "demo_multi_voice/lessac_01_welcome.wav",
+          "question": "Hello, I'm new here. What services do you offer?",
+          "response": "Welcome to Astra Vein Treatment Center! We specialize in diagnosing and treating various vein and vascular conditions, including varicose veins, spider veins, and circulation problems."
+        },
+        {
+          "conversation_id": "02_office_hours",
+          "file": "demo_multi_voice/lessac_02_office_hours.wav",
+          "question": "What are your office hours?",
+          "response": "Our office hours are Monday to Friday from 9:00 AM to 6:00 PM. We're closed on Saturdays and Sundays."
+        },
+        {
+          "conversation_id": "03_location",
+          "file": "demo_multi_voice/lessac_03_location.wav",
+          "question": "Where are you located? I'm in Brooklyn.",
+          "response": "We have three locations in the NYC area, but our Brooklyn office is conveniently located at 4209A Avenue U. You're already close by!"
+        },
+        {
+          "conversation_id": "04_phone",
+          "file": "demo_multi_voice/lessac_04_phone.wav",
+          "question": "What's your phone number?",
+          "response": "You can reach our main office at 3 4 7 9 3 4 9 0 6 8. Our staff will be happy to assist you."
+        },
+        {
+          "conversation_id": "05_doctor",
+          "file": "demo_multi_voice/lessac_05_doctor.wav",
+          "question": "Who is the doctor?",
+          "response": "Our main doctor is Dr. George Bolotin, MD, an interventional radiologist who specializes in vein and vascular conditions."
+        }
+      ]
+    },
+    "libritts_female_1": {
+      "description": "LibriTTS Female #1 - Natural conversational voice",
+      "model": "en_US-libritts-high",
+      "speaker_id": 200,
+      "files": [
+        {
+          "conversation_id": "01_welcome",
+          "file": "demo_multi_voice/libritts_female_1_01_welcome.wav",
+          "question": "Hello, I'm new here. What services do you offer?",
+          "response": "Welcome to Astra Vein Treatment Center! We specialize in diagnosing and treating various vein and vascular conditions, including varicose veins, spider veins, and circulation problems."
+        },
+        {
+          "conversation_id": "02_office_hours",
+          "file": "demo_multi_voice/libritts_female_1_02_office_hours.wav",
+          "question": "What are your office hours?",
+          "response": "Our office hours are Monday to Friday from 9:00 AM to 6:00 PM. We're closed on Saturdays and Sundays."
+        },
+        {
+          "conversation_id": "03_location",
+          "file": "demo_multi_voice/libritts_female_1_03_location.wav",
+          "question": "Where are you located? I'm in Brooklyn.",
+          "response": "We have three locations in the NYC area, but our Brooklyn office is conveniently located at 4209A Avenue U. You're already close by!"
+        },
+        {
+          "conversation_id": "04_phone",
+          "file": "demo_multi_voice/libritts_female_1_04_phone.wav",
+          "question": "What's your phone number?",
+          "response": "You can reach our main office at 3 4 7 9 3 4 9 0 6 8. Our staff will be happy to assist you."
+        },
+        {
+          "conversation_id": "05_doctor",
+          "file": "demo_multi_voice/libritts_female_1_05_doctor.wav",
+          "question": "Who is the doctor?",
+          "response": "Our main doctor is Dr. George Bolotin, MD, an interventional radiologist who specializes in vein and vascular conditions."
+        }
+      ]
+    },
+    "libritts_female_2": {
+      "description": "LibriTTS Female #2 - Professional mature voice",
+      "model": "en_US-libritts-high",
+      "speaker_id": 446,
+      "files": [
+        {
+          "conversation_id": "01_welcome",
+          "file": "demo_multi_voice/libritts_female_2_01_welcome.wav",
+          "question": "Hello, I'm new here. What services do you offer?",
+          "response": "Welcome to Astra Vein Treatment Center! We specialize in diagnosing and treating various vein and vascular conditions, including varicose veins, spider veins, and circulation problems."
+        },
+        {
+          "conversation_id": "02_office_hours",
+          "file": "demo_multi_voice/libritts_female_2_02_office_hours.wav",
+          "question": "What are your office hours?",
+          "response": "Our office hours are Monday to Friday from 9:00 AM to 6:00 PM. We're closed on Saturdays and Sundays."
+        },
+        {
+          "conversation_id": "03_location",
+          "file": "demo_multi_voice/libritts_female_2_03_location.wav",
+          "question": "Where are you located? I'm in Brooklyn.",
+          "response": "We have three locations in the NYC area, but our Brooklyn office is conveniently located at 4209A Avenue U. You're already close by!"
+        },
+        {
+          "conversation_id": "04_phone",
+          "file": "demo_multi_voice/libritts_female_2_04_phone.wav",
+          "question": "What's your phone number?",
+          "response": "You can reach our main office at 3 4 7 9 3 4 9 0 6 8. Our staff will be happy to assist you."
+        },
+        {
+          "conversation_id": "05_doctor",
+          "file": "demo_multi_voice/libritts_female_2_05_doctor.wav",
+          "question": "Who is the doctor?",
+          "response": "Our main doctor is Dr. George Bolotin, MD, an interventional radiologist who specializes in vein and vascular conditions."
+        }
+      ]
+    },
+    "libritts_female_3": {
+      "description": "LibriTTS Female #3 - Bright, friendly voice",
+      "model": "en_US-libritts-high",
+      "speaker_id": 121,
+      "files": [
+        {
+          "conversation_id": "01_welcome",
+          "file": "demo_multi_voice/libritts_female_3_01_welcome.wav",
+          "question": "Hello, I'm new here. What services do you offer?",
+          "response": "Welcome to Astra Vein Treatment Center! We specialize in diagnosing and treating various vein and vascular conditions, including varicose veins, spider veins, and circulation problems."
+        },
+        {
+          "conversation_id": "02_office_hours",
+          "file": "demo_multi_voice/libritts_female_3_02_office_hours.wav",
+          "question": "What are your office hours?",
+          "response": "Our office hours are Monday to Friday from 9:00 AM to 6:00 PM. We're closed on Saturdays and Sundays."
+        },
+        {
+          "conversation_id": "03_location",
+          "file": "demo_multi_voice/libritts_female_3_03_location.wav",
+          "question": "Where are you located? I'm in Brooklyn.",
+          "response": "We have three locations in the NYC area, but our Brooklyn office is conveniently located at 4209A Avenue U. You're already close by!"
+        },
+        {
+          "conversation_id": "04_phone",
+          "file": "demo_multi_voice/libritts_female_3_04_phone.wav",
+          "question": "What's your phone number?",
+          "response": "You can reach our main office at 3 4 7 9 3 4 9 0 6 8. Our staff will be happy to assist you."
+        },
+        {
+          "conversation_id": "05_doctor",
+          "file": "demo_multi_voice/libritts_female_3_05_doctor.wav",
+          "question": "Who is the doctor?",
+          "response": "Our main doctor is Dr. George Bolotin, MD, an interventional radiologist who specializes in vein and vascular conditions."
+        }
+      ]
+    }
+  },
+  "conversations": [
+    {
+      "id": "01_welcome",
+      "question": "Hello, I'm new here. What services do you offer?",
+      "response": "Welcome to Astra Vein Treatment Center! We specialize in diagnosing and treating various vein and vascular conditions, including varicose veins, spider veins, and circulation problems."
+    },
+    {
+      "id": "02_office_hours",
+      "question": "What are your office hours?",
+      "response": "Our office hours are Monday to Friday from 9:00 AM to 6:00 PM. We're closed on Saturdays and Sundays."
+    },
+    {
+      "id": "03_location",
+      "question": "Where are you located? I'm in Brooklyn.",
+      "response": "We have three locations in the NYC area, but our Brooklyn office is conveniently located at 4209A Avenue U. You're already close by!"
+    },
+    {
+      "id": "04_phone",
+      "question": "What's your phone number?",
+      "response": "You can reach our main office at 3 4 7 9 3 4 9 0 6 8. Our staff will be happy to assist you."
+    },
+    {
+      "id": "05_doctor",
+      "question": "Who is the doctor?",
+      "response": "Our main doctor is Dr. George Bolotin, MD, an interventional radiologist who specializes in vein and vascular conditions."
+    }
+  ]
+}

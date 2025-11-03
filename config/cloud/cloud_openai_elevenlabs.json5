@@ -1,0 +1,76 @@
+{
+  // Cloud-Only Configuration: OpenAI GPT-4 + ElevenLabs TTS + OpenAI Whisper ASR
+  // High-quality cloud services for best performance
+  // Balanced configuration: responsive but prevents feedback loops
+  
+  "hertz": 0.5,  // Moderate polling for balance of responsiveness and stability
+  "name": "CloudAI-Premium",
+  "api_key": null,
+  
+  // System prompts
+  "system_prompt_base": "You are CloudAI, a premium AI assistant powered by OpenAI's GPT-4 and ElevenLabs voice synthesis. You are intelligent, articulate, and provide high-quality responses with natural speech. When you don't receive clear input, politely indicate you're ready to help.",
+  "system_governance": "Here are the laws that govern your actions. Do not violate these laws.\nFirst Law: A robot cannot harm a human or allow a human to come to harm.\nSecond Law: A robot must obey orders from humans, unless those orders conflict with the First Law.\nThird Law: A robot must protect itself, as long as that protection doesn't conflict with the First or Second Law.",
+  "system_prompt_examples": "Here are some examples of interactions:\n\n1. If a person asks 'What's the weather like?', you might:\n    Speak: {'sentence': 'I don't have access to current weather data, but I'd be happy to help you find that information!'}\n\n2. If a person says 'Hello!', you might:\n    Speak: {'sentence': 'Hello! I'm CloudAI, your premium AI assistant. How can I help you today?'}\n\n3. If you don't receive clear input, you might:\n    Speak: {'sentence': 'I'm here and ready to help! Please speak clearly and I'll do my best to assist you.'}",
+  
+  // Input configuration - OpenAI Whisper ASR (cloud)
+  // Balanced configuration: responsive but prevents feedback loops
+  "agent_inputs": [
+    {
+      "type": "LocalASRInput",
+      "config": {
+        "engine": "openai-whisper",
+        "api_key_env": "OPENAI_API_KEY",
+        "model": "whisper-1",
+        "sample_rate": 16000,
+        "chunk_duration": 3,              // Moderate chunks for stability
+        "silence_threshold": 0.02,        // More sensitive than before
+        "min_audio_length": 1.0,          // Shorter minimum for responsiveness
+        "vad_enabled": true,              // Voice Activity Detection
+        "buffer_size": 8192,              // Optimized buffer size
+        "timeout_after_silence": 2.0,     // Reasonable silence timeout
+        "debounce_time": 2.0              // Shorter debounce for responsiveness
+      }
+    }
+  ],
+  
+  // LLM configuration - OpenAI GPT-4
+  // Balanced for responsiveness and conversation quality
+  "cortex_llm": {
+    "type": "OpenAILLM",
+    "config": {
+      "agent_name": "CloudAI-Premium",
+      "model": "gpt-4",
+      "temperature": 0.7,                 // Balanced creativity
+      "max_tokens": 400,                  // Reasonable response length
+      "timeout": 25,                      // Reasonable timeout
+      "history_length": 6,                // Moderate history for context
+      "stream": false,                    // Keep streaming disabled for stability
+      "frequency_penalty": 0.3,           // Moderate penalty for repetition
+      "presence_penalty": 0.2             // Moderate penalty for repeated topics
+    }
+  },
+  
+  // Action configuration - ElevenLabs TTS (cloud)
+  // Using local_elevenlabs_tts connector for better reliability
+  "agent_actions": [
+    {
+      "name": "speak",
+      "llm_label": "speak",
+      "implementation": "passthrough",
+      "connector": "local_elevenlabs_tts",
+      "config": {
+        "voice_id": "21m00Tcm4TlvDq8ikWAM",  // Rachel voice
+        "model_id": "eleven_flash_v2_5",      // Fast model for better latency
+        "stability": 0.4,
+        "similarity_boost": 0.6,
+        "api_key_env": "ELEVENLABS_API_KEY"
+      }
+    }
+  ],
+  
+  // Simulators (required but can be empty)
+  "simulators": [],
+  
+  // Background processes (optional)
+  "backgrounds": []
+}

@@ -1,0 +1,6 @@
+# Lex Channel Chief Offline Control
+# Installation completed: Sun Nov  2 10:39:46 EST 2025
+# OM1 compatible: Yes
+# Dependencies: FastAPI, Uvicorn, Typer, PSUtil, Jinja2
+# CLI: ./lex [command]
+# Dashboard: ./start_lex_dashboard.sh

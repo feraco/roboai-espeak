@@ -1,0 +1,33 @@
+{
+  ...existing code...
+  agent_actions: [
+    {
+      "name": "speak",
+      "llm_label": "speak",
+      "type": "Action",
+      "implementation": "passthrough",
+      "connector": "piper_tts",
+      "config": {
+        "model_en": "en_US-libritts-high",
+        "model_es": "es_ES-davefx-medium",
+        "model_ru": "ru_RU-dmitri-medium",
+        "model_path_en": null,
+        "model_path_es": null,
+        "model_path_ru": null,
+        "output_dir": "audio_output",
+        "sample_rate": 22050,
+        "play_command": null,
+        "working_dir": null,
+        "speaker_id": 200,
+        "length_scale": 1.05,
+        "noise_scale": 0.667,
+        "noise_w": 0.8,
+        "piper_command": "piper",
+        "clear_on_speak": false,
+        "mock": false,
+        "log_sentences": true
+      }
+    }
+  ],
+  ...existing code...
+}

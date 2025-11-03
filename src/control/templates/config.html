@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - Lex Channel Chief{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="/" class="btn">← Back to Dashboard</a>
+</div>
+
+<div class="info-card">
+    <h3>⚙️ Agent Configuration</h3>
+    <form method="post" style="margin-top: 20px;">
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                🔊 Voice Volume (0.0 - 1.0):
+            </label>
+            <input type="number" name="volume" min="0" max="1" step="0.1" 
+                   value="{{ current_volume or 0.8 }}" 
+                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                ⚡ Response Speed (0.5 - 2.0):
+            </label>
+            <input type="number" name="speed" min="0.5" max="2.0" step="0.1" 
+                   value="{{ current_speed or 1.0 }}" 
+                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <small style="color: #666;">Higher values = faster responses (affects cortex hertz)</small>
+        </div>
+        
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+                💬 System Prompt:
+            </label>
+            <textarea name="prompt" rows="4" 
+                      style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"
+                      placeholder="Enter custom system prompt...">{{ current_prompt or '' }}</textarea>
+            <small style="color: #666;">Used by fuser for system context</small>
+        </div>
+        
+        <button type="submit" class="btn btn-success">💾 Save Configuration</button>
+    </form>
+</div>
+
+{% if message %}
+<div class="info-card" style="margin-top: 20px;">
+    <p style="color: {{ 'green' if success else 'red' }};">{{ message }}</p>
+    {% if success and is_running %}
+    <p style="color: orange;">⚠️ Restart agent to apply changes (fuser caches system context)</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="info-card" style="margin-top: 20px;">
+    <h3>📋 Current OM1 Configuration</h3>
+    <div class="log-output" style="max-height: 300px;">
+{{ config_json }}
+    </div>
+</div>
+{% endblock %}

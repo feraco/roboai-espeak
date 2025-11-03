@@ -1,0 +1,81 @@
+{
+  // Local OM1 Agent Configuration
+  // This configuration runs fully independent of OpenMind's API
+  
+  "hertz": 1,
+  "name": "Astra",
+  
+  // Remove OpenMind API key dependency
+  "api_key": null,
+  
+  // System prompts
+  "system_prompt_base": "You are Astra, a helpful AI assistant. You are friendly, knowledgeable, and always ready to help. Respond naturally and conversationally.",
+  "system_governance": "Here are the laws that govern your actions. Do not violate these laws.\nFirst Law: A robot cannot harm a human or allow a human to come to harm.\nSecond Law: A robot must obey orders from humans, unless those orders conflict with the First Law.\nThird Law: A robot must protect itself, as long as that protection doesn't conflict with the First or Second Law.",
+  "system_prompt_examples": "Here are some examples of interactions:\n\n1. If a person asks 'What's the weather like?', you might:\n    Speak: {'sentence': 'I don't have access to current weather data, but I'd be happy to help you find that information!'}\n\n2. If a person says 'Hello!', you might:\n    Speak: {'sentence': 'Hello! How can I help you today?'}",
+
+  
+  // Input configuration - Local ASR with OpenAI Whisper
+  "agent_inputs": [
+    {
+      "type": "LocalASRInput",
+      "config": {
+        "engine": "openai-whisper",  // or "faster-whisper" for offline
+        "sample_rate": 16000,
+        "chunk_duration": 5,
+        "silence_threshold": 0.01,
+        "min_audio_length": 1.0
+      }
+    }
+  ],
+  
+  // LLM configuration - OpenAI GPT (uses OPENAI_API_KEY from .env)
+  "cortex_llm": {
+    "type": "OpenAILLM",
+    "config": {
+      "model": "gpt-4o-mini",
+      "temperature": 0.7,
+      "max_tokens": 1000,
+      "timeout": 30
+      // api_key will be loaded from OPENAI_API_KEY environment variable
+    }
+  },
+  
+  // Alternative LLM configuration - Ollama (local)
+  // Uncomment this and comment out the OpenAI config above to use Ollama
+  /*
+  "cortex_llm": {
+    "type": "OllamaLLM",
+    "config": {
+      "base_url": "http://localhost:11434",
+      "model": "llama3",
+      "temperature": 0.7,
+      "timeout": 30
+    }
+  },
+  */
+  
+  // Action configuration - Local TTS with ElevenLabs/Piper fallback
+  "agent_actions": [
+    {
+      "name": "speak",
+      "llm_label": "speak",
+      "connector": "local_elevenlabs_tts",
+      "config": {
+        "voice_id": "EXAVITQu4vr4xnSDxMaL",  // ElevenLabs voice ID
+        "model_id": "eleven_monolingual_v1",
+        "stability": 0.5,
+        "similarity_boost": 0.5,
+        "piper_model": "en_US-lessac-medium",  // Fallback Piper model
+        "sample_rate": 22050
+        // elevenlabs_api_key will be loaded from ELEVENLABS_API_KEY environment variable
+      }
+    }
+  ],
+  
+  // Simulators (required but can be empty)
+  "simulators": [],
+  
+  // Background processes (optional)
+  "backgrounds": [],
+
+}

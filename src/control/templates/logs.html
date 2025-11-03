@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Lex Channel Chief{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+    <a href="/" class="btn">← Back to Dashboard</a>
+    <button onclick="window.location.reload()" class="btn">🔄 Refresh Logs</button>
+</div>
+
+<div class="info-card">
+    <h3>📝 Recent Agent Logs</h3>
+    <div class="log-output">
+        {% if logs %}
+{{ logs }}
+        {% else %}
+No logs available. Agent may not be running or logs not configured.
+        {% endif %}
+    </div>
+</div>
+
+<script>
+// Auto-refresh logs every 3 seconds
+setTimeout(() => {
+    window.location.reload();
+}, 3000);
+</script>
+{% endblock %}

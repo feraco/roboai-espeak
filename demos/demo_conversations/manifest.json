@@ -1,0 +1,94 @@
+{
+  "generated_at": "2025-10-28 06:57:17",
+  "total_conversations": 11,
+  "conversations": [
+    {
+      "id": "01_welcome",
+      "language": "en",
+      "question": "Hello, I'm new here. What services do you offer?",
+      "response": "Welcome to Astra Vein Treatment Center! We specialize in diagnosing and treating various vein and vascular conditions, including varicose veins, spider veins, and circulation problems.",
+      "audio_file": "demo_conversations/en_01_welcome_response.wav",
+      "index": 1
+    },
+    {
+      "id": "02_office_hours",
+      "language": "en",
+      "question": "What are your office hours?",
+      "response": "Our office hours are Monday to Friday from 9:00 AM to 6:00 PM. We're closed on Saturdays and Sundays.",
+      "audio_file": "demo_conversations/en_02_office_hours_response.wav",
+      "index": 2
+    },
+    {
+      "id": "03_location",
+      "language": "en",
+      "question": "Where are you located? I'm in Brooklyn.",
+      "response": "We have three locations in the NYC area, but our Brooklyn office is conveniently located at 4209A Avenue U. You're already close by!",
+      "audio_file": "demo_conversations/en_03_location_response.wav",
+      "index": 3
+    },
+    {
+      "id": "04_varicose_veins",
+      "language": "en",
+      "question": "Can you help with varicose veins?",
+      "response": "Yes, we can help you with varicose veins. Our doctors use advanced treatments like endovenous laser ablation and radiofrequency ablation to close off affected veins and alleviate symptoms.",
+      "audio_file": "demo_conversations/en_04_varicose_veins_response.wav",
+      "index": 4
+    },
+    {
+      "id": "05_appointment",
+      "language": "en",
+      "question": "How do I schedule an appointment?",
+      "response": "To schedule an appointment, please call our main office at (347) 934-9068. Our staff will be happy to assist you with booking a time that suits your needs.",
+      "audio_file": "demo_conversations/en_05_appointment_response.wav",
+      "index": 5
+    },
+    {
+      "id": "06_doctor",
+      "language": "en",
+      "question": "Who is the doctor?",
+      "response": "Our main doctor is Dr. George Bolotin, MD, an interventional radiologist who specializes in vein and vascular conditions.",
+      "audio_file": "demo_conversations/en_06_doctor_response.wav",
+      "index": 6
+    },
+    {
+      "id": "01_bienvenida",
+      "language": "es",
+      "question": "Hola, ¿qué servicios ofrecen?",
+      "response": "En Astra Vein Treatment Center ofrecemos tratamientos para venas varicosas, espigotes capilares y otros problemas circulatorios. Nuestros médicos expertos están aquí para ayudarlo a encontrar la solución adecuada.",
+      "audio_file": "demo_conversations/es_01_bienvenida_response.wav",
+      "index": 7
+    },
+    {
+      "id": "02_horario",
+      "language": "es",
+      "question": "¿Cuál es su horario?",
+      "response": "Nuestro horario es de lunes a viernes de 9:00 AM a 6:00 PM. Los sábados y domingos estamos cerrados.",
+      "audio_file": "demo_conversations/es_02_horario_response.wav",
+      "index": 8
+    },
+    {
+      "id": "03_ubicacion",
+      "language": "es",
+      "question": "¿Dónde están ubicados?",
+      "response": "{speak: {sentence: Astra Vein Treatment Center tiene oficinas en Brooklyn y Bronx. Nuestra dirección es 4209A Avenue U, Brooklyn, NY 11234., language: es}",
+      "audio_file": "demo_conversations/es_03_ubicacion_response.wav",
+      "index": 9
+    },
+    {
+      "id": "01_privet",
+      "language": "ru",
+      "question": "Здравствуйте, какие услуги вы предлагаете?",
+      "response": "{speak: {sentence: У нас проводятся операции по удалению вен, методами эндовенозной лазерной абляции и радиочастотной абляции. Мы также предлагаем sclerotherapy и микрофлебэкторомию, language: ru}",
+      "audio_file": "demo_conversations/ru_01_privet_response.wav",
+      "index": 10
+    },
+    {
+      "id": "02_raspisanie",
+      "language": "ru",
+      "question": "Какие у вас часы работы?",
+      "response": "Наш центр работает с понедельника по пятницу с 9:00 до 18:00. Суббота и воскресенье - выходные дни.",
+      "audio_file": "demo_conversations/ru_02_raspisanie_response.wav",
+      "index": 11
+    }
+  ]
+}

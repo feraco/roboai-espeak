@@ -1,0 +1,92 @@
+{
+  // RoboStylist Configuration
+  // Adds a vision input that routes camera frames through an Ollama vision model
+
+  "hertz": 5,
+  "name": "RoboStylist",
+  "api_key": null,
+
+  "system_prompt_base": "You are RoboStylist, a playful assistant that can both hear and see the user. If vision notes are available, you may reference them casually, but keep it brief and friendly. If no human voice is detected, return [] for actions.",
+  "system_governance": "First Law: Return [] when no speech was detected. Second Law: Keep responses to one short sentence. Third Law: If vision notes seem relevant, mention them naturally but don't overemphasize details.",
+  "system_prompt_examples": "When you receive a vision note, keep references casual and friendly.\nExample vision note: INPUT: Vision // START I see a person wearing casual clothing. // END\nExample response: Speak: {'sentence': 'Hey there! Ready for a quick laugh?'}",
+
+  "agent_inputs": [
+    {
+      "type": "LocalASRInput",
+      "config": {
+        "engine": "faster-whisper",
+        "model_size": "tiny.en",
+        "device": "cpu",
+        "compute_type": "int8",
+        "sample_rate": 16000,
+        "chunk_duration": 3.0,
+        "silence_threshold": 0.0008,
+        "min_audio_length": 0.2,
+        "vad_filter": false,
+        "beam_size": 1,
+        "input_device": null,
+        "amplify_audio": 2.5,
+        "condition_on_previous_text": false,
+        "always_transcribe": true,
+        "rms_debug": true
+      }
+    },
+    {
+      "type": "VLMOllamaVision",
+      "config": {
+        "base_url": "http://localhost:11434",
+        "model": "llava-llama3",
+        "camera_index": 0,
+        "poll_interval": 2.0,
+        "analysis_interval": 8.0,
+        "timeout": 25,
+        "prompt": "In one brief sentence, describe only what you can clearly see: Is there a person? What are they wearing? Be factual and concise.",
+        "descriptor": "Vision"
+      }
+    }
+  ],
+
+  "simulators": [],
+  "backgrounds": [],
+
+  "cortex_llm": {
+    "type": "OllamaLLM",
+    "config": {
+      "agent_name": "RoboStylist",
+      "base_url": "http://localhost:11434",
+      "model": "llama3.1:8b",
+      "temperature": 0.8,
+      "timeout": 60,
+      "history_length": 2,
+      "repeat_penalty": 1.2,
+      "frequency_penalty": 0.3
+    }
+  },
+
+  "agent_actions": [
+    {
+      "name": "speak",
+      "llm_label": "speak",
+      "type": "Action",
+      "implementation": "passthrough",
+      "connector": "piper_tts",
+      "config": {
+        "model": "en_US-ryan-medium",
+        "output_dir": "audio_output",
+        "sample_rate": 22050,
+        "play_command": "afplay {filename}",
+        "model_path": "/Users/wwhs-research/Downloads/roboai-feature-multiple-agent-configurations/piper-voices/en/en_US/ryan/medium/en_US-ryan-medium.onnx",
+        "working_dir": "/Users/wwhs-research/Downloads/roboai-feature-multiple-agent-configurations/piper-voices/en/en_US/ryan/medium",
+        "config_path": "/Users/wwhs-research/Downloads/roboai-feature-multiple-agent-configurations/piper-voices/en/en_US/ryan/medium/en_US-ryan-medium.onnx.json",
+        "speaker_id": 0,
+        "length_scale": 1.0,
+        "noise_scale": 0.667,
+        "noise_w": 0.8,
+        "piper_command": "piper",
+        "clear_on_speak": true,
+        "mock": false,
+        "log_sentences": true
+      }
+    }
+  ]
+}
