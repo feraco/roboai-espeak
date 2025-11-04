@@ -1,0 +1,78 @@
+{
+  name: "badge_reader_test",
+  api_key: null,
+  hertz: 1,
+  
+  system_prompt_base: "You are a friendly, enthusiastic AI receptionist. Your PRIMARY JOB is to greet people by name when you detect their badge. ALWAYS respond immediately when you see a badge detection message. Be warm, welcoming, and personalized in your greetings.",
+  
+  system_governance: "CRITICAL RULES:\n1. When you receive a badge detection (e.g., 'I see [Name] is here'), you MUST immediately greet them by name using the speak action\n2. Make each greeting personal and enthusiastic\n3. Always use the person's full name that was detected\n4. Be professional but friendly and warm",
+  
+  system_prompt_examples: "Example 1 - Badge Detection (ALWAYS RESPOND):\nInput: 'Badge Reader - OCR System: I see John Smith is here. Their badge shows the name John Smith.'\nYou MUST respond: {\"speak\": {\"sentence\": \"Hello John Smith! Welcome! It's great to see you today!\", \"language\": \"en\"}}\n\nExample 2 - Another Badge Detection (ALWAYS RESPOND):\nInput: 'Badge Reader - OCR System: I see Sarah Johnson is here. Their badge shows the name Sarah Johnson.'\nYou MUST respond: {\"speak\": {\"sentence\": \"Good morning Sarah Johnson! Welcome! How wonderful to meet you!\", \"language\": \"en\"}}\n\nExample 3 - Badge Detection with Unusual Name:\nInput: 'Badge Reader - OCR System: I see Frederick Feraco is here. Their badge shows the name Frederick Feraco.'\nYou MUST respond: {\"speak\": {\"sentence\": \"Hello Frederick Feraco! What a pleasure to meet you! Welcome!\", \"language\": \"en\"}}\n\nExample 4 - Voice Input:\nInput: 'Speech Recognition: What time is it?'\nResponse: {\"speak\": {\"sentence\": \"I'm not sure of the exact time, but I'm here to help you with anything you need!\", \"language\": \"en\"}}",
+
+  agent_inputs: [
+    {
+      type: "BadgeReaderOCR",
+      config: {
+        camera_index: 0,
+        poll_interval: 5.0,  // Check for badges every 5 seconds
+        greeting_cooldown: 60.0,  // Don't greet same person within 60 seconds
+        preprocess_quality: "medium",  // low, medium, or high - medium is good balance
+        confidence_threshold: 0.5,
+        buffer_size: 5,
+        descriptor: "Badge Reader - OCR System"
+      }
+    },
+    {
+      type: "LocalASRInput",
+      config: {
+        engine: "faster-whisper",
+        model_size: "base",
+        device: "cpu",
+        compute_type: "int8",
+        language: "en",
+        vad_filter: true,
+        vad_threshold: 0.5,
+        min_speech_duration: 0.3,
+        chunk_duration: 3.0,
+        amplify_audio: 3.0,
+        input_device: 2,  // MacBook Pro Microphone
+        descriptor: "Speech Recognition"
+      }
+    }
+  ],
+
+  cortex_llm: {
+    type: "OllamaLLM",
+    config: {
+      agent_name: "Badge Reader Test",
+      base_url: "http://localhost:11434",
+      model: "llama3.2:3b",
+      temperature: 0.7,
+      timeout: 30,
+      max_tokens: 100,
+      num_predict: 100,
+      options: {
+        temperature: 0.7,
+        top_p: 0.9,
+        repeat_penalty: 1.1
+      }
+    }
+  },
+
+  agent_actions: [
+    {
+      name: "speak",
+      llm_label: "speak",
+      type: "Action",
+      implementation: "passthrough",
+      connector: "piper_tts",
+      config: {
+        model_en: "en_US-kristin-medium",
+        output_dir: "audio_output",
+        sample_rate: 22050,
+        default_language: "en",
+        volume: 1.0
+      }
+    }
+  ]
+}

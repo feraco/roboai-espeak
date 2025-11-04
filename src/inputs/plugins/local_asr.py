@@ -193,14 +193,14 @@ class LocalASRInput(FuserInput[str]):
                 
                 return rate
                 
-            except Exception as e:
-                logging.debug(f"LocalASRInput: Sample rate {rate} Hz not supported: {e}")
+            except Exception as exc:
+                logging.debug(f"LocalASRInput: Sample rate {rate} Hz not supported: {exc}")
                 continue
         
         # If all rates fail, default to 48000 (most common on modern hardware)
         logging.error(
             f"LocalASRInput: Could not detect supported sample rate. "
-            f"Defaulting to 48000 Hz. Original error: {e}"
+            f"Defaulting to 48000 Hz."
         )
         return 48000
 
@@ -371,12 +371,16 @@ class LocalASRInput(FuserInput[str]):
             # Determine language for transcription
             language = None if self.detect_language else self.default_language
             
+            # Get initial_prompt for language hint (helps with multi-language detection)
+            initial_prompt = getattr(self.config, "initial_prompt", None)
+            
             # Transcribe with Faster-Whisper
             segments, info = self.faster_whisper_model.transcribe(
                 audio_array,
                 beam_size=getattr(self.config, "beam_size", 5),
                 language=language,  # None for auto-detection, specific language code otherwise
-                vad_filter=getattr(self.config, "vad_filter", True)
+                vad_filter=getattr(self.config, "vad_filter", True),
+                initial_prompt=initial_prompt  # Language hint for better detection
             )
             
             # Get detected language

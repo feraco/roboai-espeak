@@ -88,7 +88,7 @@ def start(config_name: str, log_level: str = "INFO", log_to_file: bool = False) 
         logging.error(f"Configuration file not found: {config_path}")
         raise typer.Exit(1)
     except Exception as e:
-        logging.error(f"Error loading configuration: {e}")
+        logging.error(f"Error loading configuration: {e}", exc_info=True)
         raise typer.Exit(1)
 
 

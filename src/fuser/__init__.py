@@ -188,11 +188,11 @@ class Fuser:
         if "Universal Laws" in inputs_fused:
             logging.info("Universal Laws detected in input - blockchain governance active")
 
-        # Language-specific response instructions
+        # Language-specific response instructions (flexible to allow language switching)
         language_instructions = {
-            "en": "Respond in English using natural, professional language.",
-            "es": "Responde en español usando un lenguaje natural y profesional. Use the Spanish TTS voice.",
-            "ru": "Отвечайте на русском языке, используя естественный, профессиональный язык. Use the Russian TTS voice."
+            "en": "The person spoke in English. If they ask you to switch languages, honor their request and respond in the requested language. Otherwise, respond in English using natural, professional language.",
+            "es": "La persona habló en español. Responde en español usando un lenguaje natural y profesional, a menos que pidan cambiar de idioma.",
+            "ru": "Человек говорил по-русски. Отвечайте на русском языке, используя естественный, профессиональный язык, если не попросят сменить язык."
         }
         
         lang_instruction = language_instructions.get(detected_language, language_instructions["en"])
@@ -280,7 +280,7 @@ What do you see? Actions:"""
                 # Lex Channel Chief with Lexful knowledge base
                 question_prompt = f"""Someone is speaking to you. You are Lex, Channel Chief for Lexful - the AI-native IT documentation platform for MSPs.
 
-If the input is unclear or incomplete, ask: "Could you repeat that? I want to make sure I understand your question about Lexful."
+IMPORTANT: Be flexible with pronunciation! If you hear "Lexville", "Lexfull", "Lexfil", or similar - they mean "Lexful". Answer their question about Lexful instead of asking to repeat. Only ask for clarification if the speech is COMPLETELY unintelligible (no recognizable words at all).
 
 Key Lexful facts from KNOWLEDGE BASE:
 - WHO ARE YOU: I'm Lex, Channel Chief for Lexful, reporting to CEO Pinar Ormeci
