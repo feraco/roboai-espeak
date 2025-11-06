@@ -45,6 +45,24 @@ class AudioConfig:
         logging.info("🔍 Detecting audio devices...")
         
         try:
+            # On Linux, ensure we're using PulseAudio, not ALSA directly
+            if self.platform == "linux":
+                try:
+                    # Check if PulseAudio is available
+                    result = subprocess.run(
+                        ["pactl", "info"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2
+                    )
+                    if result.returncode == 0:
+                        # Set sounddevice to use pulse hostapi
+                        import os
+                        os.environ['SDL_AUDIODRIVER'] = 'pulse'
+                        logging.info("✅ Using PulseAudio backend")
+                except Exception as e:
+                    logging.warning(f"⚠️  PulseAudio check failed: {e}")
+            
             devices = sd.query_devices()
             
             input_dev = None
@@ -88,14 +106,20 @@ class AudioConfig:
                 device_info = devices[input_dev]
                 default_sr = int(device_info.get('default_samplerate', 16000))
                 
-                # Test sample rates
-                if self.platform == "darwin":  # macOS
+                # On Linux, check PulseAudio for actual sample rate
+                if self.platform == "linux":
+                    pulse_sr = self._get_pulseaudio_sample_rate(self.input_name)
+                    if pulse_sr:
+                        self.sample_rate = pulse_sr
+                        logging.info(f"📊 Using PulseAudio sample rate: {self.sample_rate} Hz")
+                    else:
+                        # Test sample rates for Linux/Jetson
+                        self.sample_rate = self._test_sample_rate(input_dev, [48000, 16000, 44100], default_sr)
+                        logging.info(f"📊 Selected sample rate via testing: {self.sample_rate} Hz")
+                else:  # macOS
                     # macOS USB mics often prefer 48000
                     self.sample_rate = self._test_sample_rate(input_dev, [48000, 44100, 16000], default_sr)
-                else:  # Linux/Jetson
-                    self.sample_rate = self._test_sample_rate(input_dev, [16000, 48000, 44100], default_sr)
-                    
-                logging.info(f"📊 Selected sample rate: {self.sample_rate} Hz")
+                    logging.info(f"📊 Selected sample rate: {self.sample_rate} Hz")
             
             return input_dev, output_dev
             
@@ -108,10 +132,47 @@ class AudioConfig:
         for rate in rates:
             try:
                 sd.check_input_settings(device=device, samplerate=rate, channels=1)
+                logging.debug(f"✅ Sample rate {rate} Hz works")
                 return rate
-            except Exception:
+            except Exception as e:
+                logging.debug(f"❌ Sample rate {rate} Hz failed: {e}")
                 continue
+        logging.warning(f"⚠️  All sample rate tests failed, using default: {default} Hz")
         return default
+    
+    def _get_pulseaudio_sample_rate(self, device_name: str) -> Optional[int]:
+        """Get sample rate from PulseAudio for a specific device."""
+        try:
+            result = subprocess.run(
+                ["pactl", "list", "short", "sources"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            
+            if result.returncode != 0:
+                return None
+            
+            # Parse output for device and sample rate
+            # Format: index name driver sample_spec ...
+            for line in result.stdout.strip().split('\n'):
+                if 'C-Media_Electronics_Inc._USB_PnP_Sound_Device' in line or 'USB_PnP_Sound_Device' in line:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        # Extract sample rate from spec like "s16le 1ch 48000Hz"
+                        spec = parts[3]
+                        import re
+                        match = re.search(r'(\d+)Hz', spec)
+                        if match:
+                            rate = int(match.group(1))
+                            logging.info(f"📊 PulseAudio reports {rate} Hz for {device_name}")
+                            return rate
+            
+            return None
+            
+        except Exception as e:
+            logging.debug(f"Could not query PulseAudio sample rate: {e}")
+            return None
     
     def print_diagnostics(self):
         """Print comprehensive audio diagnostics."""
