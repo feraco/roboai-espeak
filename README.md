@@ -7,7 +7,8 @@ A modular AI runtime that lets you create interactive AI agents for robots and v
 **Complete documentation is now in the [`documentation/`](documentation/) folder:**
 
 - **[📖 Documentation Index](documentation/README.md)** - Full documentation overview
-- **[🚀 Quick Start](documentation/setup/QUICKSTART.md)** - Get started in 5 minutes
+- **[🚀 Installation & Run Guide](INSTALL_AND_RUN.md)** - Complete setup and troubleshooting
+- **[⚡ Jetson Quick Fix](JETSON_QUICK_FIX.md)** - One-page troubleshooting reference
 - **[🤖 Ubuntu G1 Deployment](documentation/setup/UBUNTU_G1_DEPLOYMENT.md)** - Complete G1 robot setup
 - **[🔧 Troubleshooting](documentation/troubleshooting/)** - Diagnostic tools and fixes
 
@@ -15,6 +16,8 @@ A modular AI runtime that lets you create interactive AI agents for robots and v
 
 | Platform | Documentation | Description |
 |----------|---------------|-------------|
+| **Jetson Orin** | [Jetson Quick Fix](JETSON_QUICK_FIX.md) | One-page troubleshooting + fixes |
+| **Any Platform** | [Install & Run Guide](INSTALL_AND_RUN.md) | Complete setup + troubleshooting |
 | **Ubuntu G1 Robot** | [Ubuntu G1 Deployment](documentation/setup/UBUNTU_G1_DEPLOYMENT.md) | Complete guide with step-by-step troubleshooting |
 | **macOS Development** | [macOS Quick Install](documentation/setup/QUICK_INSTALL_MAC.md) | Local development setup |
 | **Local Offline** | [Local Setup](documentation/setup/LOCAL_SETUP.md) | Fully offline configuration |
