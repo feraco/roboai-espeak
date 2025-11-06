@@ -403,56 +403,127 @@ def check_ollama():
     print("🤖 OLLAMA LLM SERVICE")
     print("="*70)
     
+    # Check system memory first
+    print("\n📊 System Memory Check:")
+    stdout, stderr, code = run_command("free -h")
+    if code == 0:
+        lines = stdout.split('\n')
+        for line in lines[:2]:  # Show header and Mem line
+            print(f"   {line}")
+    
     # Check if Ollama is running
     stdout, stderr, code = run_command("ollama list")
     
     if code != 0:
-        print("❌ Ollama not running or not installed")
+        print("\n❌ Ollama not running or not installed")
         print("\n💡 To install Ollama:")
         print("   curl -fsSL https://ollama.ai/install.sh | sh")
         return False
     
-    print("✅ Ollama is running")
+    print("\n✅ Ollama is running")
     
     # List installed models
     print("\n📋 Installed models:")
     print(stdout)
     
     # Check for required model
-    if "llama3.1:8b" in stdout:
+    has_model = "llama3.1:8b" in stdout
+    if has_model:
         print("✅ Required model llama3.1:8b is installed")
     else:
         print("⚠️  Required model llama3.1:8b NOT found")
         print("   Install with: ollama pull llama3.1:8b")
     
-    # Clear Ollama cache
-    print("\n🧹 Clearing Ollama cache...")
+    # Check Ollama service status
+    print("\n🔍 Checking Ollama service status...")
+    stdout, stderr, code = run_command("systemctl status ollama --no-pager -l", timeout=5)
+    if code == 0:
+        # Look for errors in recent logs
+        if "500" in stdout or "499" in stdout or "Load failed" in stdout:
+            print("⚠️  Ollama service has errors:")
+            for line in stdout.split('\n'):
+                if any(err in line for err in ["500", "499", "Load failed", "error", "ERROR"]):
+                    print(f"   {line.strip()}")
+            print("\n   💡 This indicates model loading issues - will clear cache and restart")
+    
+    # Clear Ollama cache and runtime data
+    print("\n🧹 Clearing Ollama cache and runtime data...")
     
     # Stop Ollama
-    print("   Stopping Ollama service...")
-    run_command("sudo systemctl stop ollama", timeout=10)
+    print("   1. Stopping Ollama service...")
+    run_command("sudo systemctl stop ollama", timeout=15)
+    import time
+    time.sleep(2)  # Give it time to stop
     
-    # Clear cache directory
-    cache_dir = Path.home() / ".ollama"
-    if cache_dir.exists():
-        print(f"   Clearing cache: {cache_dir}")
-        run_command(f"rm -rf {cache_dir}/cache/*", timeout=10)
-        print("   ✅ Cache cleared")
+    # Kill any remaining ollama processes
+    print("   2. Ensuring all Ollama processes stopped...")
+    run_command("sudo pkill -9 ollama", timeout=5)
+    time.sleep(1)
+    
+    # Clear cache and runtime directories
+    cache_locations = [
+        Path.home() / ".ollama" / "cache",
+        Path.home() / ".ollama" / "tmp",
+        Path("/tmp") / "ollama*",
+        Path("/usr/share/ollama/.ollama/cache") if Path("/usr/share/ollama/.ollama").exists() else None
+    ]
+    
+    for cache_dir in cache_locations:
+        if cache_dir is None:
+            continue
+        if "*" in str(cache_dir):
+            # Wildcard pattern
+            print(f"   3. Clearing: {cache_dir}")
+            run_command(f"rm -rf {cache_dir}", timeout=10)
+        elif cache_dir.exists():
+            print(f"   3. Clearing: {cache_dir}")
+            run_command(f"rm -rf {cache_dir}/*", timeout=10)
+    
+    print("   ✅ Cache and runtime data cleared")
+    
+    # Clear systemd failed state if exists
+    print("   4. Resetting systemd state...")
+    run_command("sudo systemctl reset-failed ollama", timeout=5)
     
     # Restart Ollama
-    print("   Starting Ollama service...")
-    stdout, stderr, code = run_command("sudo systemctl start ollama", timeout=10)
+    print("   5. Starting Ollama service...")
+    stdout, stderr, code = run_command("sudo systemctl start ollama", timeout=15)
     
     if code == 0:
-        print("   ✅ Ollama restarted successfully")
-        return True
+        time.sleep(3)  # Wait for service to fully start
+        
+        # Verify it's actually running
+        stdout, stderr, code = run_command("systemctl is-active ollama", timeout=5)
+        if code == 0 and "active" in stdout:
+            print("   ✅ Ollama restarted successfully")
+            
+            # Test model loading if model exists
+            if has_model:
+                print("\n🧪 Testing model loading...")
+                print("   Sending test prompt to verify model loads correctly...")
+                stdout, stderr, code = run_command(
+                    'ollama run llama3.1:8b "Hi" --verbose',
+                    timeout=30
+                )
+                if code == 0:
+                    print("   ✅ Model loads and responds correctly")
+                else:
+                    print(f"   ⚠️  Model test failed: {stderr}")
+                    print("   This may indicate insufficient memory or corrupted model")
+                    print("   Try: ollama pull llama3.1:8b  (to re-download)")
+            
+            return True
+        else:
+            print(f"   ⚠️  Ollama service not active: {stdout}")
+            return False
     else:
-        print(f"   ⚠️  Ollama restart failed: {stderr}")
-        print("   Trying manual start...")
-        # Try starting without systemd
-        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print("   ✅ Ollama started in background")
-        return True
+        print(f"   ❌ Ollama restart failed: {stderr}")
+        print("\n💡 Manual troubleshooting:")
+        print("   1. Check logs: sudo journalctl -u ollama -n 50")
+        print("   2. Check memory: free -h")
+        print("   3. Try manual start: ollama serve")
+        print("   4. Re-pull model: ollama pull llama3.1:8b")
+        return False
 
 
 def check_camera():
