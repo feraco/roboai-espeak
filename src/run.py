@@ -15,6 +15,7 @@ from runtime.multi_mode.cortex import ModeCortexRuntime
 from runtime.single_mode.config import load_config
 from runtime.single_mode.cortex import CortexRuntime
 from utils.audio_validation import validate_audio_before_start, log_audio_troubleshooting_tips
+from utils.llm_validation import validate_llm_before_start, log_llm_troubleshooting_tips
 
 
 def find_config_file(config_name: str) -> Optional[str]:
@@ -85,6 +86,32 @@ def start(config_name: str, log_level: str = "INFO", log_to_file: bool = False) 
             config_obj = config
             runtime = CortexRuntime(config)
             logging.info(f"Starting OM1 with standard configuration: {config_name}")
+
+        # LLM validation before starting (can be disabled with env var)
+        skip_llm_validation = os.getenv("SKIP_LLM_VALIDATION", "false").lower() == "true"
+        
+        if not skip_llm_validation:
+            # Extract model name from config
+            model_name = "llama3.1:8b"  # Default
+            try:
+                llm_config = config_obj.cortex_llm
+                if hasattr(llm_config, 'config') and hasattr(llm_config.config, 'model'):
+                    model_name = llm_config.config.model
+                elif hasattr(llm_config, 'model'):
+                    model_name = llm_config.model
+            except Exception:
+                pass  # Use default
+            
+            # Run LLM validation
+            llm_ok = validate_llm_before_start(model=model_name, timeout=20)
+            
+            if not llm_ok:
+                log_llm_troubleshooting_tips()
+                logging.error("❌ LLM validation failed - cannot start agent")
+                logging.error("   Set SKIP_LLM_VALIDATION=true to bypass this check")
+                raise typer.Exit(2)
+        else:
+            logging.info("ℹ️  LLM validation skipped (SKIP_LLM_VALIDATION=true)")
 
         # Audio validation before starting (optional, can be disabled with env var)
         skip_audio_validation = os.getenv("SKIP_AUDIO_VALIDATION", "false").lower() == "true"

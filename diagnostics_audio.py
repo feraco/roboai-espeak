@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from utils.audio_config import get_audio_config
 from utils.camera_config import get_camera_config
+from utils.llm_validation import validate_llm_before_start, log_llm_troubleshooting_tips
 
 
 def run_command(cmd, timeout=5):
@@ -556,9 +557,18 @@ def main():
     print("🎙️  ASTRA VEIN RECEPTIONIST - SYSTEM DIAGNOSTICS")
     print("="*70 + "\n")
     
-    # Check Ollama first (clear cache and restart)
+    # Check Ollama first (with comprehensive validation)
     print("🔧 Step 1: Ollama LLM Service")
     ollama_ok = check_ollama()
+    
+    # Add LLM validation (test model inference)
+    if ollama_ok:
+        print("\n🔧 Step 1b: LLM Inference Test")
+        llm_ok = validate_llm_before_start(model="llama3.1:8b", timeout=20)
+        if not llm_ok:
+            print("\n❌ LLM inference test failed!")
+            log_llm_troubleshooting_tips()
+            ollama_ok = False
     
     # Check camera
     print("\n🔧 Step 2: Camera Detection")

@@ -99,8 +99,9 @@ python diagnostics_audio.py
 
 This script will:
 1. **Check Ollama**: Verify LLM service, clear cache, restart
-2. **Detect Camera**: Find Intel RealSense D435i (if connected)
-3. **Test Audio**: Verify microphone and speaker configuration
+2. **Test LLM Inference**: Send test prompt to verify model responds
+3. **Detect Camera**: Find Intel RealSense D435i (if connected)
+4. **Test Audio**: Verify microphone and speaker configuration
 
 **Expected output:**
 ```

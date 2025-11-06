@@ -22,13 +22,16 @@ ExecStartPre=/bin/sleep 15
 ExecStartPre=/bin/bash -c "systemctl is-active ollama || sudo systemctl start ollama"
 ExecStartPre=/bin/sleep 5
 
+# Test Ollama model before starting agent (prevents startup with broken LLM)
+ExecStartPre=/bin/bash -c "timeout 20 ollama run llama3.1:8b 'Reply OK' || exit 1"
+
 # Clear stale audio configs
 ExecStartPre=/bin/bash -c "cd /home/ubuntu/Downloads/roboai-espeak/roboai-espeak-main && rm -f device_config.yaml"
 
 # Verify audio devices are available
 ExecStartPre=/bin/bash -c "timeout 10 arecord -l || exit 0"
 
-# Start agent (no diagnostics - they block startup)
+# Start agent (LLM validation enabled by default in run.py)
 ExecStart=/home/ubuntu/.local/bin/uv run /home/ubuntu/Downloads/roboai-espeak/roboai-espeak-main/src/run.py astra_vein_receptionist
 
 # Restart on failure
