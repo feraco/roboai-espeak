@@ -19,10 +19,12 @@ uv run src/run.py astra_vein_receptionist
 | Error Message | Quick Fix |
 |---------------|-----------|
 | **"Ollama API error"** | `sudo systemctl restart ollama && ollama run llama3.1:8b "test"` |
+| **"No response from LLM"** / **"OUTPUT(LLM): No response"** | `./fix_ollama.sh` OR `sudo systemctl restart ollama` |
+| **"LLM validation failed"** | Model corrupted or not downloaded → `ollama pull llama3.1:8b` |
+| **"Model test timed out"** | Not enough RAM or model too large → Try `llama3.2:3b` |
 | **"Invalid number of channels [PaErrorCode -9998]"** | `git pull origin main && rm device_config.yaml && python diagnostics_audio.py` |
 | **"Device unavailable [PaErrorCode -9985]"** | `pkill -9 -f python && pulseaudio --kill && pulseaudio --start` |
 | **Garbage/hallucinated speech text** | Same as "Invalid channels" (audio corruption) |
-| **"No response from LLM"** | `./fix_ollama.sh` |
 | **Agent stuck/frozen** | `pkill -9 -f python && sudo systemctl restart ollama` |
 
 ---
