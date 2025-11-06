@@ -76,14 +76,14 @@ ollama serve
 The agent uses Piper for text-to-speech. Download voice models:
 
 ```bash
-# Run the voice download script
-./download_voices.sh
-
-# Or manually download to piper_voices/:
-# - en_US-kristin-medium.onnx (English)
-# - es_ES-davefx-medium.onnx (Spanish)
-# - ru_RU-dmitri-medium.onnx (Russian)
+# Run the voice download script (downloads ~180MB)
+./download_piper_voices.sh
 ```
+
+**Note:** Voice models (.onnx files) are NOT included in the git repository due to their large size (600MB+). The script downloads only the essential voices needed for the astra_vein_receptionist agent:
+- en_US-kristin-medium.onnx (English)
+- es_ES-davefx-medium.onnx (Spanish)
+- ru_RU-dmitri-medium.onnx (Russian)
 
 ---
 
