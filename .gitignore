@@ -36,6 +36,10 @@ uv.lock
 piper_voices/*.onnx
 piper_voices/*.onnx.json
 
+# Device configuration files (platform-specific)
+device_config.yaml
+camera_config.yaml
+
 # Audio output
 audio_output/
 tmp_audio/

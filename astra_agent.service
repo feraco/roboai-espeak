@@ -1,0 +1,37 @@
+[Unit]
+Description=Astra Vein Receptionist AI Agent
+After=network.target ollama.service pulseaudio.service
+Wants=ollama.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/roboai-espeak
+Environment="PATH=/home/ubuntu/.local/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="DISPLAY=:0"
+Environment="PULSE_SERVER=/run/user/1000/pulse/native"
+
+# Wait for system to be ready
+ExecStartPre=/bin/sleep 10
+
+# Clear Ollama cache and restart
+ExecStartPre=/bin/bash -c "sudo systemctl stop ollama && rm -rf /home/ubuntu/.ollama/cache/* && sudo systemctl start ollama && sleep 5"
+
+# Run diagnostics (skip audio test to avoid blocking)
+ExecStartPre=/usr/bin/env SKIP_AUDIO_TEST=1 /home/ubuntu/.local/bin/uv run python /home/ubuntu/roboai-espeak/diagnostics_audio.py
+
+# Start agent
+ExecStart=/home/ubuntu/.local/bin/uv run /home/ubuntu/roboai-espeak/src/run.py astra_vein_receptionist
+
+# Restart on failure
+Restart=on-failure
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=astra-agent
+
+[Install]
+WantedBy=multi-user.target

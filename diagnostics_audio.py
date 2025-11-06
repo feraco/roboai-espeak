@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Audio diagnostics script for Astra Vein Receptionist agent.
+System diagnostics script for Astra Vein Receptionist agent.
 
-Run this before starting the agent to ensure proper audio device configuration.
+Run this before starting the agent to ensure proper configuration:
+- Audio devices (microphone, speaker)
+- Camera (Intel RealSense D435i)
+- Ollama LLM service
 
 For Jetson Orin, includes low-level ALSA/PulseAudio verification.
 """
@@ -17,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from utils.audio_config import get_audio_config
+from utils.camera_config import get_camera_config
 
 
 def run_command(cmd, timeout=5):
@@ -393,17 +397,108 @@ def jetson_diagnostics():
         return False
 
 
-def main():
-    """Run audio diagnostics."""
+def check_ollama():
+    """Check Ollama status and manage service."""
     print("\n" + "="*70)
-    print("🎙️  ASTRA VEIN RECEPTIONIST - AUDIO DIAGNOSTICS")
+    print("🤖 OLLAMA LLM SERVICE")
+    print("="*70)
+    
+    # Check if Ollama is running
+    stdout, stderr, code = run_command("ollama list")
+    
+    if code != 0:
+        print("❌ Ollama not running or not installed")
+        print("\n💡 To install Ollama:")
+        print("   curl -fsSL https://ollama.ai/install.sh | sh")
+        return False
+    
+    print("✅ Ollama is running")
+    
+    # List installed models
+    print("\n📋 Installed models:")
+    print(stdout)
+    
+    # Check for required model
+    if "llama3.1:8b" in stdout:
+        print("✅ Required model llama3.1:8b is installed")
+    else:
+        print("⚠️  Required model llama3.1:8b NOT found")
+        print("   Install with: ollama pull llama3.1:8b")
+    
+    # Clear Ollama cache
+    print("\n🧹 Clearing Ollama cache...")
+    
+    # Stop Ollama
+    print("   Stopping Ollama service...")
+    run_command("sudo systemctl stop ollama", timeout=10)
+    
+    # Clear cache directory
+    cache_dir = Path.home() / ".ollama"
+    if cache_dir.exists():
+        print(f"   Clearing cache: {cache_dir}")
+        run_command(f"rm -rf {cache_dir}/cache/*", timeout=10)
+        print("   ✅ Cache cleared")
+    
+    # Restart Ollama
+    print("   Starting Ollama service...")
+    stdout, stderr, code = run_command("sudo systemctl start ollama", timeout=10)
+    
+    if code == 0:
+        print("   ✅ Ollama restarted successfully")
+        return True
+    else:
+        print(f"   ⚠️  Ollama restart failed: {stderr}")
+        print("   Trying manual start...")
+        # Try starting without systemd
+        subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        print("   ✅ Ollama started in background")
+        return True
+
+
+def check_camera():
+    """Check camera configuration."""
+    print("\n" + "="*70)
+    print("📷 CAMERA CONFIGURATION")
+    print("="*70)
+    
+    try:
+        camera_config = get_camera_config(force_detect=True)
+        
+        if camera_config.camera_index is not None:
+            print(f"✅ Camera detected: {camera_config.camera_name}")
+            print(f"   Index: {camera_config.camera_index}")
+            print(f"   Resolution: {camera_config.width}x{camera_config.height}")
+            return True
+        else:
+            print("⚠️  No camera detected")
+            print("   Intel RealSense D435i is recommended for face detection")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Camera check failed: {e}")
+        return False
+
+
+def main():
+    """Run system diagnostics."""
+    print("\n" + "="*70)
+    print("🎙️  ASTRA VEIN RECEPTIONIST - SYSTEM DIAGNOSTICS")
     print("="*70 + "\n")
     
+    # Check Ollama first (clear cache and restart)
+    print("🔧 Step 1: Ollama LLM Service")
+    ollama_ok = check_ollama()
+    
+    # Check camera
+    print("\n🔧 Step 2: Camera Detection")
+    camera_ok = check_camera()
+    
     # Run Jetson-specific diagnostics if on Linux
+    print("\n🔧 Step 3: Audio System")
     if platform.system() == "Linux":
         jetson_ok = jetson_diagnostics()
         if not jetson_ok:
-            print("\n❌ Jetson diagnostics failed - fix issues before continuing")
+            print("\n❌ Jetson audio diagnostics failed - fix issues before continuing")
     
     # Force device detection
     config = get_audio_config(force_detect=True)

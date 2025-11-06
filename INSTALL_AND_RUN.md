@@ -87,18 +87,34 @@ The agent uses Piper for text-to-speech. Download voice models:
 
 ---
 
-## 🔍 Hardware Verification
+## 🔍 System Verification
 
-### Check Audio Devices
+### Run Full System Diagnostics
 
-Run comprehensive audio diagnostics:
+Run comprehensive system diagnostics (audio, camera, Ollama):
 
 ```bash
 python diagnostics_audio.py
 ```
 
+This script will:
+1. **Check Ollama**: Verify LLM service, clear cache, restart
+2. **Detect Camera**: Find Intel RealSense D435i (if connected)
+3. **Test Audio**: Verify microphone and speaker configuration
+
 **Expected output:**
 ```
+🤖 OLLAMA LLM SERVICE
+✅ Ollama is running
+✅ Required model llama3.1:8b is installed
+✅ Ollama restarted successfully
+
+📷 CAMERA CONFIGURATION
+✅ Camera detected: Intel(R) RealSense(TM) Depth Camera 435i
+   Index: 6
+   Resolution: 640x480
+
+🎙️ AUDIO SYSTEM
 ✅ Input device configured: 1 - USB PnP Sound Device
 ✅ Output device configured: 2 - USB 2.0 Speaker
 📊 Sample rate: 48000 Hz (macOS) or 16000 Hz (Jetson)
@@ -113,18 +129,6 @@ python diagnostics_audio.py
 **Troubleshooting:**
 - See [JETSON_ORIN_AUDIO_GUIDE.md](documentation/troubleshooting/JETSON_ORIN_AUDIO_GUIDE.md) for detailed Linux audio troubleshooting
 - See [AUDIO_CONFIG.md](AUDIO_CONFIG.md) for audio system architecture
-
-### Test Microphone
-
-```bash
-python test_microphone.py
-```
-
-### Test Camera (Optional)
-
-```bash
-python test_camera.py
-```
 
 ---
 
@@ -160,6 +164,39 @@ While the agent is running, speak to it:
 "Can you speak Spanish?" → Agent responds in Spanish
 "Can you speak Russian?" → Agent responds in Russian  
 "Can you speak English?" → Agent responds in English
+```
+
+### Auto-Start on Boot (Jetson Only)
+
+To configure the agent to start automatically when the Jetson boots:
+
+```bash
+# Install systemd service
+./install_autostart.sh
+```
+
+This will:
+- Install a systemd service (`astra_agent.service`)
+- Enable auto-start on boot
+- Clear Ollama cache and restart on each boot
+- Run diagnostics before starting agent
+
+**Service management:**
+```bash
+# Start agent now
+sudo systemctl start astra_agent
+
+# Stop agent
+sudo systemctl stop astra_agent
+
+# Check status
+sudo systemctl status astra_agent
+
+# View live logs
+sudo journalctl -u astra_agent -f
+
+# Disable auto-start
+sudo systemctl disable astra_agent
 ```
 
 ---
