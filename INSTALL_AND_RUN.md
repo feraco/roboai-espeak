@@ -275,6 +275,192 @@ roboai-espeak/
 
 ## 🔧 Troubleshooting
 
+### 🚨 Common Jetson Issues (START HERE)
+
+If you encounter errors on Jetson Orin, follow this comprehensive troubleshooting procedure:
+
+#### Issue 1: "Ollama API error" / "No response from LLM"
+
+**Symptoms:**
+```
+ERROR - Ollama API error: 
+ERROR - OUTPUT(LLM): No response from LLM
+```
+
+**Complete Fix:**
+```bash
+# 1. Kill all Python/agent processes (they may be holding resources)
+pkill -9 -f python
+pkill -9 -f "src/run.py"
+sleep 2
+
+# 2. Restart Ollama service
+sudo systemctl restart ollama
+sleep 5
+
+# 3. Test Ollama is responding
+ollama run llama3.1:8b "Test. Reply with just OK."
+
+# If test fails, run the full fix script:
+./fix_ollama.sh
+```
+
+**What fix_ollama.sh does:**
+- Stops Ollama service
+- Kills lingering processes
+- Clears ALL cache locations (user + system + tmp)
+- Restarts Ollama
+- Tests model loading with timeout
+- Auto-reinstalls model if corrupted
+
+#### Issue 2: "Invalid number of channels [PaErrorCode -9998]"
+
+**Symptoms:**
+```
+Expression 'parameters->channelCount <= maxChans' failed
+Error opening InputStream: Invalid number of channels [PaErrorCode -9998]
+```
+
+**Cause:** USB microphone only supports stereo (2 channels) on Jetson, but code tries mono (1 channel)
+
+**Fix:**
+```bash
+# Pull the stereo detection fix
+git pull origin main
+
+# Clear old audio config (has wrong channel count)
+rm device_config.yaml
+
+# Regenerate with channel auto-detection
+python diagnostics_audio.py
+```
+
+**Expected output after fix:**
+```
+LocalASRInput: Device only supports stereo (2 channels)
+LocalASRInput: Will record in stereo and convert to mono for ASR
+✅ Using 2 channel(s)
+```
+
+#### Issue 3: "Device unavailable [PaErrorCode -9985]"
+
+**Symptoms:**
+```
+Expression 'ret' failed in 'src/hostapi/alsa/pa_linux_alsa.c'
+Error opening InputStream: Device unavailable [PaErrorCode -9985]
+```
+
+**Cause:** Microphone is locked by another process (previous agent run didn't fully stop)
+
+**Fix:**
+```bash
+# Kill all processes using audio
+pkill -9 -f python
+pkill -9 -f pulseaudio
+sleep 2
+
+# Restart PulseAudio
+pulseaudio --start
+
+# Verify device is free
+fuser -v /dev/snd/*
+
+# Clear stale config and regenerate
+rm device_config.yaml
+python diagnostics_audio.py
+```
+
+#### Issue 4: Whisper Hallucinations (Garbage Transcriptions)
+
+**Symptoms:**
+```
+[LANG:en] In fascinación, a sat JUDGE. Hablamos.arina. venas, CR 2...
+```
+
+**Cause:** Corrupted audio data from channel mismatch bug
+
+**Fix:**
+```bash
+# 1. Pull stereo fix
+git pull origin main
+
+# 2. Clear audio config
+rm device_config.yaml
+
+# 3. Regenerate and test
+python diagnostics_audio.py
+```
+
+---
+
+### 🔄 Complete Jetson Reset Procedure
+
+If your agent is completely broken, run this full reset:
+
+```bash
+# 1. Stop everything
+pkill -9 -f python
+pkill -9 -f ollama
+sudo systemctl stop ollama
+sleep 3
+
+# 2. Pull latest fixes
+cd ~/Downloads/roboai-espeak/roboai-espeak-main  # or your path
+git pull origin main
+
+# 3. Clear all caches and configs
+rm device_config.yaml
+rm camera_config.yaml
+rm -rf ~/.ollama/cache
+sudo rm -rf /usr/share/ollama/.ollama/cache
+sudo rm -rf /tmp/ollama*
+
+# 4. Restart services
+sudo systemctl start ollama
+sleep 5
+pulseaudio --kill && pulseaudio --start
+
+# 5. Verify Ollama
+ollama list
+ollama run llama3.1:8b "Test. Reply OK."
+
+# 6. Run full diagnostics
+python diagnostics_audio.py
+
+# 7. Start agent fresh
+uv run src/run.py astra_vein_receptionist
+```
+
+---
+
+### 🎯 Quick Diagnostic Commands
+
+```bash
+# Check what's using the microphone
+fuser -v /dev/snd/*
+lsof | grep snd
+
+# Check Ollama status
+systemctl status ollama
+sudo journalctl -u ollama -n 50
+
+# Check audio devices
+arecord -l
+pactl list short sources
+
+# Test microphone manually
+arecord -D hw:1,0 -f S16_LE -r 16000 -c 2 -d 3 test.wav
+aplay test.wav
+
+# Check system memory (for Ollama)
+free -h
+
+# Check USB devices
+lsusb | grep -i audio
+```
+
+---
+
 ### Audio Issues
 
 #### macOS
