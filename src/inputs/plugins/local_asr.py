@@ -76,6 +76,9 @@ class LocalASRInput(FuserInput[str]):
         # Auto-detect supported sample rate if requested rate fails
         self.sample_rate = self._detect_supported_sample_rate(requested_sample_rate)
         
+        # Detect supported channel count (some devices only support stereo)
+        self.channels = self._detect_supported_channels()
+        
         # OpenAI configuration
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
         if not self.openai_api_key and self.engine == "openai-whisper":
@@ -226,6 +229,7 @@ class LocalASRInput(FuserInput[str]):
         for rate in rates_to_try:
             try:
                 # Try to create a test stream with this rate
+                # Use 1 channel for initial detection (will be properly set later)
                 test_stream = sd.InputStream(
                     samplerate=rate,
                     channels=1,
@@ -255,6 +259,62 @@ class LocalASRInput(FuserInput[str]):
             f"Defaulting to 48000 Hz."
         )
         return 48000
+
+    def _detect_supported_channels(self) -> int:
+        """
+        Detect supported channel count for the input device.
+        Some USB devices only support stereo (2 channels), not mono (1 channel).
+        
+        Returns
+        -------
+        int
+            Number of channels (1 for mono, 2 for stereo)
+        """
+        if self.input_device is None:
+            logging.warning("LocalASRInput: No input device set, defaulting to 1 channel")
+            return 1
+        
+        try:
+            # Get device info
+            device_info = sd.query_devices(self.input_device)
+            max_channels = device_info.get('max_input_channels', 1)
+            
+            # Try mono first (preferred for speech recognition)
+            for channels in [1, 2]:
+                if channels > max_channels:
+                    continue
+                    
+                try:
+                    test_stream = sd.InputStream(
+                        samplerate=self.sample_rate,
+                        channels=channels,
+                        dtype='float32',
+                        device=self.input_device,
+                        blocksize=1024
+                    )
+                    test_stream.close()
+                    
+                    if channels == 2:
+                        logging.warning(
+                            f"LocalASRInput: Device only supports stereo (2 channels). "
+                            f"Will record in stereo and convert to mono for ASR."
+                        )
+                    else:
+                        logging.info(f"LocalASRInput: Using {channels} channel(s)")
+                    
+                    return channels
+                    
+                except Exception as exc:
+                    logging.debug(f"LocalASRInput: {channels} channel(s) not supported: {exc}")
+                    continue
+            
+            # Default to 1 if detection fails
+            logging.warning("LocalASRInput: Channel detection failed, defaulting to 1 channel")
+            return 1
+            
+        except Exception as exc:
+            logging.error(f"LocalASRInput: Error detecting channels: {exc}")
+            return 1
 
     def _start_audio_processing(self):
         """Start the audio processing loop."""
@@ -307,11 +367,19 @@ class LocalASRInput(FuserInput[str]):
             audio_data = sd.rec(
                 int(self.sample_rate * self.chunk_duration),
                 samplerate=self.sample_rate,
-                channels=1,
+                channels=self.channels,  # Use detected channel count
                 dtype='float32',
                 device=self.input_device  # Use specified input device
             )
             sd.wait()  # Wait until recording is finished
+            
+            # If stereo, convert to mono for ASR (average both channels)
+            if self.channels == 2:
+                import numpy as np
+                audio_array = np.frombuffer(audio_data.tobytes(), dtype=np.float32)
+                audio_array = audio_array.reshape(-1, 2)  # Reshape to (samples, 2)
+                audio_array = audio_array.mean(axis=1)    # Average channels
+                return audio_array.tobytes()
             
             return audio_data.tobytes()
             
