@@ -152,10 +152,13 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
 
         # Only report when we actually see a person
         if self.emotion == "":
-            # No face detected - don't report anything
-            return None
+            # No face detected - report this clearly to prevent hallucination
+            message = "No discernible objects."
+            logging.debug("EmotionCapture: No face detected in frame")
+            return Message(timestamp=time.time(), message=message)
         else:
-            message = f"I see a person. Their emotion is {self.emotion}."
+            # Grounded observation: report exactly what was detected
+            message = f"Visible: 1 person (emotion: {self.emotion})"
             logging.info(f"EmotionCapture: {message}")
             
             # Reset emotion for next frame

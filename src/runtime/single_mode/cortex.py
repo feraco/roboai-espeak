@@ -129,14 +129,15 @@ class CortexRuntime:
     async def _tick(self) -> None:
         """
         Execute a single tick of the cortex processing cycle.
-        Now with debug logging for ASR, LLM, and TTS.
+        Enhanced with structured I/O logging for debugging.
         """
+        import datetime
+        
+        # Timestamp for this tick
+        tick_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
         # collect all the latest inputs
         finished_promises, _ = await self.action_orchestrator.flush_promises()
-
-        # Debug: log all ASR inputs
-        if finished_promises:
-            logging.info(f"ASR inputs: {finished_promises}")
 
         # Combine those inputs into a suitable prompt
         prompt = self.fuser.fuse(self.config.agent_inputs, finished_promises)
@@ -144,36 +145,56 @@ class CortexRuntime:
         # Skip if fuser returns None (no actionable input)
         if prompt is None:
             return
-            
-        logging.info(f"Fused prompt: {prompt}")
         
         # Skip if no valid input (don't waste LLM tokens on empty prompts)
         if not prompt or prompt.strip() == "":
             if finished_promises:  # If we had input but fusion failed
-                logging.warning(f"No prompt after fusion. ASR buffer: {finished_promises}")
+                logging.warning(f"{tick_time} | No prompt after fusion. Finished promises: {finished_promises}")
             return
             
         # Check if this is the same as the last prompt to prevent repeats
         last_prompt = self.io_provider.llm_prompt
         if prompt == last_prompt:
-            logging.info("Skipping duplicate prompt")
+            logging.debug(f"{tick_time} | Skipping duplicate prompt")
             return
 
-        # Debug: log LLM input
-        logging.info(f"LLM input prompt: {prompt}")
+        # === STRUCTURED INPUT LOGGING ===
+        logging.info("=" * 70)
+        logging.info(f"{tick_time} | 📥 INPUT CYCLE START")
+        logging.info("=" * 70)
+        
+        # Log each input type separately
+        for agent_input in self.config.agent_inputs:
+            buffer_content = agent_input.formatted_latest_buffer()
+            if buffer_content:
+                input_type = agent_input.__class__.__name__
+                logging.info(f"{tick_time} | INPUT({input_type}): {buffer_content.strip()}")
+        
+        # Log the full prompt
+        logging.info(f"{tick_time} | INPUT(Combined Prompt):\n{prompt}\n")
 
-        # if there is a prompt, send to the AIs
-        output = await self.config.cortex_llm.ask(prompt)
-        if output is None:
-            logging.warning("No output from LLM")
+        # === LLM PROCESSING ===
+        try:
+            output = await self.config.cortex_llm.ask(prompt)
+            if output is None:
+                logging.error(f"{tick_time} | ❌ OUTPUT(LLM): No response from LLM")
+                return
+
+            # === STRUCTURED OUTPUT LOGGING ===
+            logging.info("=" * 70)
+            logging.info(f"{tick_time} | 📤 OUTPUT CYCLE START")
+            logging.info("=" * 70)
+            logging.info(f"{tick_time} | OUTPUT(LLM): {output}")
+            
+        except Exception as e:
+            logging.error("=" * 70)
+            logging.error(f"{tick_time} | ❌ LLM ERROR")
+            logging.error("=" * 70)
+            logging.error(f"{tick_time} | Error during LLM processing: {e}", exc_info=True)
             return
-
-        # Debug: log LLM output
-        logging.info(f"LLM output: {output}")
 
         # Trigger the simulators
         await self.simulator_orchestrator.promise(output.actions)
-
 
         # Filter and sanitize TTS actions
         sanitized_actions = []
@@ -182,24 +203,32 @@ class CortexRuntime:
                 # Handle both dict (with language) and string (legacy) values
                 if isinstance(a.value, dict):
                     sentence = a.value.get('sentence', '')
+                    language = a.value.get('language', 'en')
                 else:
                     sentence = str(a.value or '')
+                    language = 'en'
                 
                 # Remove NO ACTIONS
                 if sentence.strip().upper() == 'NO ACTIONS':
+                    logging.debug(f"{tick_time} | Filtered out 'NO ACTIONS' response")
                     continue
                 if not sentence.strip():
-                    logging.warning(f"Empty TTS sentence: {a.value}")
+                    logging.warning(f"{tick_time} | Empty TTS sentence: {a.value}")
                     continue
+                    
+                logging.info(f"{tick_time} | OUTPUT(TTS): [{language}] {sentence[:100]}...")
             sanitized_actions.append(a)
-        logging.info(f"TTS actions: {sanitized_actions}")
 
         # Trigger the actions
         await self.action_orchestrator.promise(sanitized_actions)
+        
+        logging.info("=" * 70)
+        logging.info(f"{tick_time} | ✅ CYCLE COMPLETE")
+        logging.info("=" * 70 + "\n")
 
         # Ensure ASR buffer is cleared after each tick for continuous listening
         from inputs.plugins.local_asr import LocalASRInput
         for agent_input in self.config.agent_inputs:
             if isinstance(agent_input, LocalASRInput):
                 agent_input.messages.clear()
-                logging.debug(f"Cleared ASR buffer for {agent_input}")
+                logging.debug(f"{tick_time} | Cleared ASR buffer for {agent_input}")

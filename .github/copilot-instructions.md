@@ -1,4 +1,4 @@
-# RoboAI Copilot Instructions
+# OM1 (RoboAI) Copilot Instructions
 
 ## Project Overview
 
@@ -213,6 +213,47 @@ Load from `.env` using `python-dotenv` (see `env.example`):
 - `documentation/` - Organized docs (setup, guides, troubleshooting)
 - `pyproject.toml` - Dependencies, test config, linting rules
 
+## Multi-Platform Development Workflow
+
+### Mac Development → Jetson/Robot Deployment Pattern
+
+1. **Develop on macOS** with `config/astra_vein_receptionist.json5` (or similar)
+2. **Test config changes** locally: `uv run src/run.py astra_vein_receptionist`
+3. **Commit working config** to git
+4. **Deploy to robot via SSH**:
+   ```bash
+   # On Jetson/Ubuntu robot
+   cd ~/roboai-espeak  # or deployment directory
+   git pull origin main
+   uv sync  # Update dependencies if needed
+   uv run src/run.py astra_vein_receptionist
+   ```
+5. **Hardware-specific adjustments**: Device numbers differ (mic, camera) - use `test_microphone.py`, `test_camera.py` on target
+
+### Configuration Version Control
+
+- **Config variants**: Platform-specific configs use suffixes: `_jetson.json5`, `_g1.json5`, `_no_vision.json5`
+- **Shared base**: Most configs work cross-platform with `input_device: null` and auto-detection
+- **Git reset pattern**: When reverting broken changes: `git fetch origin && git reset --hard origin/main`
+- **Force push with caution**: `git push origin main --force` (coordinate with team, check both platforms after)
+
+### Hardware Testing Commands
+
+```bash
+# Test all audio devices (lists devices, tests recording)
+python3 test_microphone.py
+
+# Test all cameras (captures test images)
+python3 test_camera.py
+
+# Complete G1/Ubuntu hardware check
+python3 documentation/troubleshooting/check_g1_hardware.py
+
+# Diagnose audio issues
+python3 documentation/troubleshooting/diagnose_ubuntu_audio.py  # Ubuntu
+./diagnose_audio_macos.sh  # macOS
+```
+
 ## Documentation Structure
 
 - **Setup**: `documentation/setup/QUICKSTART.md`, `UBUNTU_G1_DEPLOYMENT.md`
@@ -220,10 +261,62 @@ Load from `.env` using `python-dotenv` (see `env.example`):
 - **Troubleshooting**: Hardware testing scripts, audio diagnostics
 - **Reference**: Quick references, refactor summaries
 
-## Common Pitfalls
+## Common Pitfalls & Debugging Patterns
 
-- **Missing `.env` keys**: Check `env.example` for required API keys
-- **Ollama not running**: Start with `ollama serve` or `sudo systemctl start ollama`
-- **Plugin not found**: Ensure class name (not filename) matches config `type`
+### Audio/Microphone Issues
+
+**"No input detected" troubleshooting workflow:**
+
+1. **Test hardware first**: `python3 test_microphone.py` (lists devices, tests recording)
+2. **Use `input_device: null`** for auto-selection (recommended over hardcoding device numbers)
+3. **Sample rate conflicts**: macOS USB mics often need `48000`, Jetson works with `16000`
+4. **Device auto-selection**: `LocalASRInput._resolve_input_device()` logs selected device at INFO level
+5. **Check OS permissions**: macOS requires Terminal.app to have microphone access in System Preferences
+6. **Amplification**: Increase `amplify_audio: 3.0` if VAD not triggering (default: 1.0)
+7. **VAD sensitivity**: Adjust `silence_threshold` (0.01-0.02 typical, lower = more sensitive)
+
+**Config pattern for cross-platform audio:**
+```json5
+{
+  type: "LocalASRInput",
+  config: {
+    engine: "faster-whisper",
+    model_size: "tiny.en",
+    input_device: null,        // ✅ Auto-select (preferred)
+    sample_rate: 48000,        // macOS USB mics
+    silence_threshold: 0.02,   // Adjust based on environment
+    amplify_audio: 3.0,        // Boost quiet mics
+    vad_filter: true          // Voice activity detection
+  }
+}
+```
+
+### LLM Reliability
+
+- **llama3.2:3b JSON issues**: Produces malformed JSON (`{'language': 'en'}` without sentence, or extra `type` field)
+- **Recommended**: Use `llama3.1:8b` or larger for reliable structured output
+- **system_prompt_examples format**: Must show EXACT JSON structure LLM should output:
+  ```
+  Speak: {'sentence': 'Hello! How can I help you today?', 'language': 'en'}
+  ```
+- **Action validation**: Errors from `src/llm/function_schemas.py:convert_function_calls_to_actions()` indicate malformed LLM output
+
+### Environment & Setup
+
+- **Missing `.env` keys**: Check `env.example` for required API keys (OPENAI_API_KEY, ELEVENLABS_API_KEY, etc.)
+- **Ollama not running**: Start with `ollama serve` or `sudo systemctl start ollama` before running agents
+- **UV package manager**: All commands use `uv run` prefix (not bare `python`)
+- **macOS audio**: Install PortAudio: `brew install portaudio` (required for pyaudio/sounddevice)
+
+### Plugin Development
+
+- **Plugin not found**: Ensure **class name** (not filename) matches config `type` key
+  - Config: `type: "LocalASRInput"` → File: `local_asr.py` → Class: `class LocalASRInput`
+- **Dynamic loading**: Loader functions scan directories at runtime, no explicit imports needed
 - **Multi-mode vs single-mode**: Check if config has `modes` key to determine runtime type
-- **Excluded directories**: `src/unitree`, `src/ubtech`, `gazebo` are excluded from tests/type checking (see `pyproject.toml`, `pyrightconfig.json`)
+
+### Testing & Development
+
+- **Excluded directories**: `src/unitree`, `src/ubtech`, `gazebo` excluded from tests/type checking (see `pyproject.toml`, `pyrightconfig.json`)
+- **Exit code 2**: Configuration or initialization error - check logs with `log_level: "DEBUG"`
+- **Hardware diagnostics**: `documentation/troubleshooting/check_g1_hardware.py` (Ubuntu/G1 complete check)

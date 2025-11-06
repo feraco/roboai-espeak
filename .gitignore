@@ -8,11 +8,22 @@ wheels/
 .ruff_cache/
 .pytest_cache/
 
-# Virtual environments
-.venv
+# Virtual environments (cross-platform)
+.venv/
+venv/
+.uv/
+env/
+ENV/
+.Python
+
+# UV package manager
+.uv/
+uv.lock
+*.uv-cache/
 
 # Environment variables
 .env
+.env.local
 *.lock
 
 # IDE
@@ -42,8 +53,12 @@ front_image.jpg
 turtlebot4_debug.jpg
 turtlebot.jpg
 
-# Mac specific lint
+# OS-specific files
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
 config/iris_ai.json
 launch.sh
 
@@ -52,6 +67,10 @@ launch.sh
 
 # Logs
 logs/
+*.log
+
+# Generated config files (platform-specific)
+device_config.yaml
 
 # Data files
 *.jsonl

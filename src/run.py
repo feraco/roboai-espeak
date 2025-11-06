@@ -14,6 +14,7 @@ from runtime.multi_mode.config import load_mode_config
 from runtime.multi_mode.cortex import ModeCortexRuntime
 from runtime.single_mode.config import load_config
 from runtime.single_mode.cortex import CortexRuntime
+from utils.audio_validation import validate_audio_before_start, log_audio_troubleshooting_tips
 
 
 def find_config_file(config_name: str) -> Optional[str]:
@@ -71,16 +72,48 @@ def start(config_name: str, log_level: str = "INFO", log_to_file: bool = False) 
         with open(config_path, "r") as f:
             raw_config = json5.load(f)
 
+        # Load configuration
         if "modes" in raw_config and "default_mode" in raw_config:
             mode_config = load_mode_config(config_name)
+            config_obj = mode_config
             runtime = ModeCortexRuntime(mode_config)
             logging.info(f"Starting OM1 with mode-aware configuration: {config_name}")
             logging.info(f"Available modes: {list(mode_config.modes.keys())}")
             logging.info(f"Default mode: {mode_config.default_mode}")
         else:
             config = load_config(config_name)
+            config_obj = config
             runtime = CortexRuntime(config)
             logging.info(f"Starting OM1 with standard configuration: {config_name}")
+
+        # Audio validation before starting (optional, can be disabled with env var)
+        skip_audio_validation = os.getenv("SKIP_AUDIO_VALIDATION", "false").lower() == "true"
+        
+        if not skip_audio_validation:
+            # Extract device index from config if LocalASRInput is configured
+            device_index = None
+            try:
+                for input_cfg in config_obj.agent_inputs:
+                    if hasattr(input_cfg, 'type') and 'ASR' in input_cfg.type:
+                        device_index = getattr(input_cfg.config, 'input_device', None)
+                        break
+            except Exception:
+                pass  # Ignore errors, use default device
+            
+            # Run validation (skip actual test if in headless/CI environment)
+            skip_recording_test = os.getenv("SKIP_AUDIO_TEST", "false").lower() == "true"
+            audio_ok = validate_audio_before_start(
+                device_index=device_index,
+                skip_test=skip_recording_test
+            )
+            
+            if not audio_ok:
+                log_audio_troubleshooting_tips()
+                logging.error("❌ Audio validation failed - cannot start agent")
+                logging.error("   Set SKIP_AUDIO_VALIDATION=true to bypass this check")
+                raise typer.Exit(2)
+        else:
+            logging.info("ℹ️  Audio validation skipped (SKIP_AUDIO_VALIDATION=true)")
 
         asyncio.run(runtime.run())
 

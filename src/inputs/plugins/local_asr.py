@@ -43,7 +43,21 @@ class LocalASRInput(FuserInput[str]):
 
         # Configuration
         self.engine = getattr(self.config, "engine", "openai-whisper")
+        
+        # Try to load sample rate from saved audio config first
         requested_sample_rate = getattr(self.config, "sample_rate", 16000)
+        try:
+            from utils.audio_config import AudioConfig
+            audio_cfg = AudioConfig()
+            if audio_cfg.load_config() and audio_cfg.sample_rate:
+                requested_sample_rate = audio_cfg.sample_rate
+                logging.info(
+                    "LocalASRInput: Using saved sample rate from audio config: %d Hz",
+                    requested_sample_rate
+                )
+        except Exception as exc:
+            logging.debug(f"LocalASRInput: Could not load sample rate from audio_config: {exc}")
+        
         self.chunk_duration = getattr(self.config, "chunk_duration", 5)  # seconds
         self.silence_threshold = getattr(self.config, "silence_threshold", 0.01)
         self.min_audio_length = getattr(self.config, "min_audio_length", 1.0)  # seconds
@@ -98,11 +112,63 @@ class LocalASRInput(FuserInput[str]):
     def _resolve_input_device(self, device_config):
         """
         Resolve the input device to use for audio recording.
+        Uses audio_config.py for smart device detection by name.
         """
+        # If explicitly configured, use that device
         if device_config is not None:
-            return device_config
+            try:
+                import sounddevice as _sd
+                devices = _sd.query_devices()
+                if 0 <= device_config < len(devices):
+                    dev_name = devices[device_config]["name"]
+                    logging.info(
+                        "LocalASRInput: Using explicitly configured device %s (%s)",
+                        device_config,
+                        dev_name
+                    )
+                    return device_config
+                else:
+                    logging.error(
+                        "LocalASRInput: Configured device %s out of range (0-%d)",
+                        device_config,
+                        len(devices) - 1
+                    )
+            except Exception as e:
+                logging.error(f"LocalASRInput: Error validating device {device_config}: {e}")
 
-        # Auto-select the first available input device
+        # Try to use saved audio configuration
+        try:
+            from utils.audio_config import AudioConfig
+            config = AudioConfig()
+            
+            # Try to load saved config
+            if config.load_config() and config.input_device is not None:
+                logging.info(
+                    "LocalASRInput: Using saved audio config - device %s (%s)",
+                    config.input_device,
+                    config.input_name
+                )
+                return config.input_device
+            
+            # Detect devices by name
+            logging.info("LocalASRInput: No saved config, detecting by device name...")
+            input_dev, _ = config.detect_devices()
+            
+            if input_dev is not None:
+                logging.info(
+                    "LocalASRInput: Auto-detected device %s (%s)",
+                    input_dev,
+                    config.input_name
+                )
+                config.save_config()
+                return input_dev
+            
+        except ImportError:
+            logging.warning("LocalASRInput: utils.audio_config not available, using fallback detection")
+        except Exception as exc:
+            logging.warning(f"LocalASRInput: audio_config detection failed ({exc}), using fallback")
+
+        # Fallback: Try to find first available input device
         try:
             import sounddevice as _sd
             devices = _sd.query_devices()
@@ -113,36 +179,22 @@ class LocalASRInput(FuserInput[str]):
                     candidate = idx
                     break
             else:
-                logging.warning("LocalASRInput: no input device found; will try default device (None)")
+                logging.error("LocalASRInput: No input device found with input channels!")
                 return None
 
-        except ImportError:
-            logging.warning("LocalASRInput: sounddevice not available; will try default device (None)")
-            return None
-        except Exception as exc:
-            # Unidentifiable error: let recording try default device
             logging.warning(
-                "LocalASRInput: failed to query devices (%s); will try default (None)", exc
-            )
-            return None
-        else:
-            # Make sure the device has channels (sanity check)
-            try:
-                if devices[candidate]["max_input_channels"] <= 0:
-                    logging.warning("LocalASRInput: auto-selected device has no input channels!")
-                    return None
-            except (IndexError, KeyError):
-                pass
-
-            logging.info(
-                "LocalASRInput: auto-selected input device %s (%s)",
+                "LocalASRInput: Fallback auto-selected input device %s (%s)",
                 candidate,
                 devices[candidate]["name"],
             )
             return candidate
 
-        logging.warning("LocalASRInput: no audio input device could be resolved; recording may fail")
-        return None
+        except ImportError:
+            logging.error("LocalASRInput: sounddevice not available!")
+            return None
+        except Exception as exc:
+            logging.error(f"LocalASRInput: Device detection failed: {exc}")
+            return None
 
     def _detect_supported_sample_rate(self, requested_rate: int) -> int:
         """

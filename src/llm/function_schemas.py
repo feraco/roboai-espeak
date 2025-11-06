@@ -154,6 +154,10 @@ def convert_function_calls_to_actions(function_calls: list[dict]) -> list[Action
             # For speak actions, preserve full args dict (sentence + language)
             if function_name == "speak" and "sentence" in args:
                 action_value = args  # Keep both sentence and language
+                # Ensure language field is present (default to 'en' if missing)
+                if "language" not in action_value:
+                    action_value["language"] = "en"
+                    logging.warning(f"Language field missing in speak action, defaulting to 'en'. Args: {args}")
             else:
                 action_value = args.get("action", "")
 
