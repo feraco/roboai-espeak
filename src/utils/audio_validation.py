@@ -13,7 +13,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def quick_mic_test(device_index=None, duration=1, threshold=0.01):
+def quick_mic_test(device_index=None, duration=1, threshold=0.01, sample_rate=None):
     """
     Quick microphone test to verify audio input is working.
     
@@ -25,6 +25,8 @@ def quick_mic_test(device_index=None, duration=1, threshold=0.01):
         Recording duration in seconds
     threshold : float
         Minimum RMS threshold to consider audio valid
+    sample_rate : int, optional
+        Sample rate to use. If None, reads from device_config.yaml or defaults to 16000
         
     Returns
     -------
@@ -34,13 +36,29 @@ def quick_mic_test(device_index=None, duration=1, threshold=0.01):
     try:
         import sounddevice as sd
         import numpy as np
+        import yaml
         
-        logger.info(f"Testing microphone (device {device_index}, {duration}s)...")
+        # Try to load sample rate from device_config.yaml if not provided
+        if sample_rate is None:
+            try:
+                config_path = Path("device_config.yaml")
+                if config_path.exists():
+                    with open(config_path) as f:
+                        audio_config = yaml.safe_load(f)
+                        sample_rate = audio_config.get("sample_rate", 16000)
+                        logger.debug(f"Loaded sample rate from device_config.yaml: {sample_rate}")
+                else:
+                    sample_rate = 16000
+            except Exception as e:
+                logger.debug(f"Could not load sample rate from config: {e}")
+                sample_rate = 16000
+        
+        logger.info(f"Testing microphone (device {device_index}, {sample_rate} Hz, {duration}s)...")
         
         # Record audio
         recording = sd.rec(
-            int(duration * 16000),
-            samplerate=16000,
+            int(duration * sample_rate),
+            samplerate=sample_rate,
             channels=1,
             device=device_index,
             dtype='float32'
