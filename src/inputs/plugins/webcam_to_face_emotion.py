@@ -12,6 +12,8 @@ from inputs.base import SensorConfig
 from inputs.base.loop import FuserInput
 from providers.io_provider import IOProvider
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class Message:
@@ -102,7 +104,11 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
         # Capture a frame every 500 ms
         if self.have_cam and self.cap is not None:
             ret, frame = self.cap.read()
+            if not ret or frame is None:
+                logger.warning("⚠️ Failed to read frame from camera")
+                return None
             return frame
+        return None
 
     async def _raw_to_text(self, raw_input: cv2.typing.MatLike) -> Optional[Message]:
         """
@@ -116,7 +122,7 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
         Returns
         -------
         Message
-            Timestamped emotion detection result
+            Message containing emotion detection result
         """
         if not self.have_cam:
             # simulate a model response
@@ -126,6 +132,11 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
             return Message(timestamp=time.time(), message=message)
 
         frame = raw_input
+        
+        # Check if frame is valid (not None and not empty)
+        if frame is None or frame.size == 0:
+            logger.warning("⚠️ Camera frame is empty or None - skipping emotion detection")
+            return None
 
         # Convert frame to grayscale
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
