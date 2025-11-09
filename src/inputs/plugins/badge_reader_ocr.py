@@ -122,12 +122,15 @@ class BadgeReaderOCR(FuserInput[cv2.typing.MatLike]):
 
     async def _poll(self) -> Optional[cv2.typing.MatLike]:
         """Poll camera for new frames (respects poll_interval)"""
+        # CRITICAL: Always yield to event loop to prevent blocking audio processing
+        await asyncio.sleep(0.1)
+        
         # Check if enough time has passed since last poll
         current_time = time.time()
         time_since_last_poll = current_time - self.last_poll_time
         
         if time_since_last_poll < self.poll_interval:
-            # Not time to poll yet
+            # Not time to poll yet - return None without capturing
             return None
         
         # Update last poll time
@@ -204,10 +207,12 @@ class BadgeReaderOCR(FuserInput[cv2.typing.MatLike]):
                     # Update last seen time
                     self.detected_people[name] = current_time
                     
-                    # Create greeting message
-                    message = f"I see {name} is here. Their badge shows the name {name}."
+                    # Create greeting trigger message - tells LLM to greet this person
+                    # Extract first name only (e.g., "John Smith" -> "John")
+                    first_name = name.split()[0] if " " in name else name
+                    message = f"BADGE DETECTED: Greet {first_name}. Say: 'Hi {first_name}, my name is Lex' and introduce yourself."
                     
-                    logging.info(f"✅ Badge detected: {name}")
+                    logging.info(f"✅ Badge detected: {name} - triggering greeting")
                     return Message(timestamp=current_time, message=message)
                 
             return None
