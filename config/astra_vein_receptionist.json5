@@ -40,7 +40,7 @@
       type: "FaceEmotionCapture",
       config: {
         camera_index: 0,
-        poll_interval: 10.0,  // SPEED OPTIMIZED: Check every 10s (was 30s) = more responsive
+        poll_interval: 45.0,  // SPEED OPTIMIZED: Check every 10s (was 30s) = more responsive
         timeout: 5            // SPEED OPTIMIZED: 5s timeout (was 10s) = faster processing
       }
     }
@@ -92,7 +92,7 @@
         
         "output_dir": "audio_output",
         "sample_rate": 22050,
-        "play_command": null,           // null = auto-detect (afplay on macOS, aplay on Linux)
+        "play_command": "aplay -D plughw:0,0",  // ✅ JETSON FIX: Direct ALSA to USB speaker (card 0, device 0)
         "working_dir": null,             // null = auto-detect
         "speaker_id": 0,
   "length_scale": 0.90,  // SPEED OPTIMIZED: 0.90 (was 0.80) = faster speech

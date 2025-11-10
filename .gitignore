@@ -87,3 +87,5 @@ config/memory
 
 # Nested git repos
 roboai-espeak/
+lex_package/
+piper-voices/
