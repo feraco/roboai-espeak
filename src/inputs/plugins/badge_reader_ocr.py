@@ -78,6 +78,7 @@ class BadgeReaderOCR(FuserInput[cv2.typing.MatLike]):
         ]
         
         # Common badge text to ignore (lowercase for comparison)
+        # CRITICAL: Only greet if we detect an ACTUAL PERSON'S NAME
         self._ignore_words = {
             'visitor', 'guest', 'staff', 'employee', 'id', 'badge', 'card',
             'security', 'access', 'authorized', 'personnel', 'company',
@@ -85,7 +86,12 @@ class BadgeReaderOCR(FuserInput[cv2.typing.MatLike]):
             'manager', 'director', 'president', 'ceo', 'cto', 'cfo',
             'hospital', 'medical', 'center', 'clinic', 'doctor', 'nurse',
             'administrator', 'admin', 'supervisor', 'coordinator', 'name',
-            'expires', 'issued', 'valid', 'photo', 'signature'
+            'expires', 'issued', 'valid', 'photo', 'signature', 'first',
+            'last', 'middle', 'title', 'position', 'role', 'location',
+            'building', 'floor', 'room', 'suite', 'office', 'phone',
+            'email', 'website', 'address', 'street', 'city', 'state',
+            'zip', 'code', 'barcode', 'number', 'date', 'time', 'lexful',
+            'conference', 'event', 'attendee', 'speaker', 'vendor', 'exhibitor'
         }
         
         logging.info(
@@ -327,7 +333,10 @@ class BadgeReaderOCR(FuserInput[cv2.typing.MatLike]):
         return unique_names
 
     def _validate_name(self, name: str) -> Optional[str]:
-        """Validate that detected text is likely a name"""
+        """
+        Validate that detected text is DEFINITELY a person's name on a badge.
+        CRITICAL: Only return name if we're confident it's an actual person's name.
+        """
         if not name or len(name) < 3:
             return None
             
@@ -337,25 +346,49 @@ class BadgeReaderOCR(FuserInput[cv2.typing.MatLike]):
         # Split into words
         words = name.split()
         if len(words) < 2:  # Need at least first and last name
+            logging.debug(f"Name validation failed: {name} (need at least 2 words)")
             return None
         
         # Check each word
         for word in words:
             # Each word must be 2+ characters
             if len(word) < 2:
+                logging.debug(f"Name validation failed: {name} (word too short: {word})")
                 return None
             
-            # Check if it's in ignore list
+            # Check if it's in ignore list (NOT a person's name)
             if word.lower() in self._ignore_words:
+                logging.debug(f"Name validation failed: {name} (contains non-name word: {word})")
                 return None
             
-            # Must be all letters (no numbers or special chars)
-            if not word.isalpha():
+            # CRITICAL: Must start with capital letter (proper name)
+            if not word[0].isupper():
+                logging.debug(f"Name validation failed: {name} (not capitalized: {word})")
+                return None
+            
+            # CRITICAL: Rest of word should be lowercase (proper name format)
+            if not word[1:].islower():
+                # Allow all-caps if it's a short name (e.g., "JO LEE")
+                if not (word.isupper() and len(word) <= 4):
+                    logging.debug(f"Name validation failed: {name} (improper case: {word})")
+                    return None
+        
+        # CRITICAL: Check if name looks like actual person name patterns
+        # Common patterns: "John Smith", "Mary Jane Doe", etc.
+        if len(words) > 4:
+            logging.debug(f"Name validation failed: {name} (too many words: {len(words)})")
+            return None
+        
+        # Additional check: avoid common non-name phrases
+        name_lower = name.lower()
+        non_name_phrases = ['event staff', 'team member', 'support crew', 'front desk']
+        for phrase in non_name_phrases:
+            if phrase in name_lower:
+                logging.debug(f"Name validation failed: {name} (contains non-name phrase: {phrase})")
                 return None
         
-        # Name shouldn't be too long
-        if len(name) > 50:
-            return None
+        logging.info(f"✅ Name validation PASSED: {name} - confirmed as person's name")
+        return name
         
         # Avoid common false positives
         name_lower = name.lower()
