@@ -8,11 +8,9 @@ Too much knowledge gets stuck in scattered tools or someone’s head.
 Lexful frees that knowledge so your team can find what they need fast.  
 
 
-
 ## HOW IS LEXFUL DIFFERENT  
 Other tools just store data.  
 Lexful understands it — built A-I-first, not A-I-added.  
-
 
 
 ## WHO FOUNDED LEXFUL  

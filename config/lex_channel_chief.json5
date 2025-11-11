@@ -63,27 +63,53 @@
     }
   },
   agent_actions: [
-    {
+     {
       "name": "speak",
       "llm_label": "speak",
       "type": "Action",
       "implementation": "passthrough",
       "connector": "piper_tts",
       "config": {
-        "model_en": "en_US-ryan-medium",
+        // Multi-language TTS support with native voices
+        "model_en": "en_US-kristin-medium",         // English voice (you can change to: ryan, kristin, ljspeech, etc.)
+  // Available female English Piper voices in piper_voices:
+  // "en_US-amy-medium"      // Amy - clear, professional
+  // "en_US-amy-low"         // Amy - lower pitch
+  // "en_US-kristin-medium"  // Kristin - female, friendly
+  // "en_US-lessac-medium"   // Lessac - expressive, warm
+  // "en_US-hfc_female-medium" // HFC Female - experimental
+  // "en_US-ljspeech-medium" // LJSpeech - female, neutral
+  // "en_US-ljspeech-high"   // LJSpeech - female, higher pitch
+  // "en_US-libritts-high"   // LibriTTS - multi-speaker, set speaker_id (e.g., 200 for female)
+        "model_es": "es_ES-davefx-medium",      // Spanish voice (native Spanish pronunciation)
+        "model_ru": "ru_RU-dmitri-medium",      // Russian voice (native Russian pronunciation)
+        
+        // Voice model paths (auto-detected from common locations)
+        "model_path_en": null,    // null = auto-detect from ~/piper_voices/, ./piper-voices/, etc.
+        "model_path_es": null,    // Auto-detection searches for es_ES-claudia-medium.onnx
+        "model_path_ru": null,    // Auto-detection searches for ru_RU-dmitri-medium.onnx
+        
         "output_dir": "audio_output",
         "sample_rate": 22050,
         "play_command": "aplay -D plughw:0,0",  // ✅ JETSON FIX: Direct ALSA to USB speaker (card 0, device 0)
-        "working_dir": null,
+        "working_dir": null,             // null = auto-detect
         "speaker_id": 0,
-        "length_scale": 0.90,  // SPEED OPTIMIZED: 0.90 = faster speech
-        "noise_scale": 0.55,   // Brighter, more cheerful voice
+  "length_scale": 0.90,  // SPEED OPTIMIZED: 0.90 (was 0.80) = faster speech
+  "noise_scale": 0.55,   // Brighter, more cheerful voice
         "noise_w": 0.8,
         "piper_command": "piper",
         "clear_on_speak": false,
         "mock": false,
-        "log_sentences": true,
-        "emotion": "confident"
+  "log_sentences": true,
+  // Make agent sound happier and more energetic
+  "emotion": "happy"  // Use happy emotion for TTS if supported
+        
+        // Note: Voice models will be auto-detected in these locations:
+        // 1. ~/piper_voices/
+        // 2. ./piper-voices/
+        // 3. ./piper_voices/
+        // 4. /usr/local/share/piper/voices/
+        // 5. ~/.local/share/piper/voices/
       }
     }
   ],
