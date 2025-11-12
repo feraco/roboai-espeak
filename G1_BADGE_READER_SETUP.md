@@ -51,41 +51,97 @@ uv sync
 
 ---
 
-### Step 4: Install RealSense SDK
+### Step 4: Install Piper TTS (Text-to-Speech)
 
 ```bash
-# Check if already installed
-dpkg -l | grep realsense
+# Install Piper TTS for voice output
+cd ~/roboai-espeak
 
-# If NOT installed, there are two methods:
-
-# METHOD 1: Install from Intel's repository (RECOMMENDED)
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
-sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
-sudo apt-get update
-sudo apt-get install -y librealsense2-dkms librealsense2-utils librealsense2-dev python3-pyrealsense2
-
-# METHOD 2: Install via pip (if Method 1 fails)
-pip install pyrealsense2
+# Download and install Piper
+wget https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_arm64.tar.gz
+tar -xzf piper_arm64.tar.gz
+sudo mv piper/piper /usr/local/bin/
+sudo chmod +x /usr/local/bin/piper
 
 # Verify installation
-realsense-viewer  # Should open viewer window
-# Press Ctrl+C to exit
+which piper
+# Should output: /usr/local/bin/piper
 
-# Alternative verification without GUI
-python3 -c "import pyrealsense2 as rs; print('✅ RealSense SDK installed:', rs.__version__)"
+piper --version
+# Should output version info
+
+# Download voice models (if not already present)
+cd ~/roboai-espeak
+bash download_voices.sh
 ```
 
-**Troubleshooting:**
-- If package not found: Use Method 2 (pip install)
-- If `realsense-viewer` doesn't open: Check USB connection
-- Ensure camera is plugged into USB 3.0 port (blue port)
-- Try: `lsusb | grep Intel` to confirm camera detected
-- Check: `ls /dev/video*` to see video devices
+**Expected voices installed:**
+- `piper_voices/en_US-kristin-medium.onnx` (Kristin - female, friendly)
+- `piper_voices/en_US-amy-medium.onnx` (Amy - clear, professional)
+- `piper_voices/en_US-lessac-medium.onnx` (Lessac - expressive, warm)
+
+**If Piper installation fails:**
+```bash
+# Alternative: Install from apt (if available)
+sudo apt-get install piper-tts
+
+# Or build from source (advanced)
+git clone https://github.com/rhasspy/piper.git
+cd piper/src/cpp
+cmake -S . -B build
+cmake --build build
+sudo cp build/piper /usr/local/bin/
+```
 
 ---
 
-### Step 5: Test RealSense Camera
+### Step 5: Install RealSense SDK
+
+**RECOMMENDED: Use pip (simplest and most reliable)**
+
+```bash
+# Install pyrealsense2 via pip
+pip install pyrealsense2
+
+# If you get permission error, use:
+pip install --user pyrealsense2
+
+# Or if using the project's UV environment:
+cd ~/roboai-espeak
+uv add pyrealsense2
+
+# Verify installation
+python3 -c "import pyrealsense2 as rs; print('✅ RealSense SDK installed:', rs.__version__)"
+```
+
+**Expected output:**
+```
+✅ RealSense SDK installed: 2.54.2
+```
+
+**Alternative: Install from Intel's repository (if pip fails)**
+
+```bash
+# Add Intel's repository
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
+sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
+sudo apt-get update
+sudo apt-get install -y librealsense2-utils
+
+# Note: python3-pyrealsense2 often not available via apt
+# Stick with pip installation method above
+```
+
+**Troubleshooting:**
+- If pip not found: `sudo apt-get install python3-pip`
+- Check USB connection: `lsusb | grep Intel`
+- Should see: "Intel Corp. Intel(R) RealSense(TM) Depth Camera"
+- Check video devices: `ls /dev/video*`
+- Ensure camera plugged into USB 3.0 port (blue port)
+
+---
+
+### Step 6: Test RealSense Camera
 
 ```bash
 cd ~/roboai-espeak
@@ -126,7 +182,7 @@ lsusb | grep Intel
 
 ---
 
-### Step 6: Find Correct Camera Index
+### Step 7: Find Correct Camera Index
 
 ```bash
 # List all available cameras with their indices
@@ -151,7 +207,7 @@ Summary:
 
 ---
 
-### Step 7: Update Lex Config for Badge Reader
+### Step 8: Update Lex Config for Badge Reader
 
 ```bash
 # Open Lex configuration file
@@ -191,7 +247,7 @@ agent_inputs: [
 
 ---
 
-### Step 8: Update System Prompts
+### Step 9: Update System Prompts
 
 ```bash
 # Still in the config file
@@ -240,7 +296,7 @@ Be warm, professional, and helpful!""",
 
 ---
 
-### Step 9: Test Badge Reader Manually (Before Service)
+### Step 10: Test Badge Reader Manually (Before Service)
 
 **Important:** Test manually first to ensure everything works before installing as a service.
 
@@ -293,7 +349,7 @@ Follow the instructions in the badge input carefully...
 
 ---
 
-### Step 10: Install Robust Autostart Service
+### Step 11: Install Robust Autostart Service
 
 Once manual testing works, install the service for automatic startup on boot.
 
@@ -346,7 +402,7 @@ Service Commands:
 
 ---
 
-### Step 11: Verify Service is Running
+### Step 12: Verify Service is Running
 
 ```bash
 # Check service status
@@ -377,7 +433,7 @@ sudo journalctl -u lex_agent -n 50
 
 ---
 
-### Step 12: Monitor Logs and Test Badge Reader
+### Step 13: Monitor Logs and Test Badge Reader
 
 ```bash
 # Watch logs in real-time
@@ -413,7 +469,7 @@ Nov 12 10:31:10 ✅ Audio playback completed
 
 ---
 
-### Step 13: Filter Logs for Badge Activity
+### Step 14: Filter Logs for Badge Activity
 
 ```bash
 # Watch only badge-related logs
@@ -523,24 +579,101 @@ lsusb | grep Intel
 **Symptoms:**
 - "Unable to locate package python3-pyrealsense2"
 - "E: Package 'python3-pyrealsense2' has no installation candidate"
+- All apt repository methods failing
 
-**Solutions:**
+**Solution: Use pip instead (RECOMMENDED)**
+
 ```bash
-# Method 1: Add Intel's repository first
-sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
-sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
-sudo apt-get update
-sudo apt-get install -y librealsense2-dkms librealsense2-utils python3-pyrealsense2
-
-# Method 2: Install via pip instead
+# Simple pip installation (works on all systems)
 pip install pyrealsense2
 
-# Method 3: Use UV package manager
+# If permission denied, use --user flag
+pip install --user pyrealsense2
+
+# Or use the project's UV environment
 cd ~/roboai-espeak
 uv add pyrealsense2
 
-# Verify installation
+# Verify installation works
 python3 -c "import pyrealsense2 as rs; print('✅ Installed:', rs.__version__)"
+
+# Test camera connection
+python3 -c "import pyrealsense2 as rs; ctx = rs.context(); print('Devices:', len(ctx.query_devices()))"
+# Should output: Devices: 1 (or higher)
+```
+
+**If pip not installed:**
+```bash
+sudo apt-get update
+sudo apt-get install -y python3-pip
+```
+
+**Note:** The apt repository method often fails on ARM64/Jetson systems. Pip installation is more reliable and works the same way.
+
+---
+
+### Piper TTS Not Found
+
+**Symptoms:**
+- "piper: command not found"
+- "Piper TTS check failed: not found in PATH"
+- Service fails to start with TTS errors
+
+**Solutions:**
+
+```bash
+# Quick install method (ARM64 for Jetson/G1)
+cd /tmp
+wget https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_arm64.tar.gz
+tar -xzf piper_arm64.tar.gz
+sudo mv piper/piper /usr/local/bin/
+sudo chmod +x /usr/local/bin/piper
+
+# Verify it's in PATH
+which piper
+# Should output: /usr/local/bin/piper
+
+# Test it works
+echo "Hello, this is a test" | piper --model ~/roboai-espeak/piper_voices/en_US-kristin-medium.onnx --output_file /tmp/test.wav
+aplay /tmp/test.wav  # Should hear audio
+
+# Download voice models if missing
+cd ~/roboai-espeak
+bash download_voices.sh
+
+# Or manually download a voice:
+cd ~/roboai-espeak/piper_voices
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/kristin/medium/en_US-kristin-medium.onnx
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/kristin/medium/en_US-kristin-medium.onnx.json
+```
+
+**Alternative: Use espeak instead of Piper**
+
+If Piper continues to have issues, you can use espeak (simpler but lower quality):
+
+```bash
+# Install espeak
+sudo apt-get install -y espeak
+
+# Test it
+espeak "Hello, this is a test"
+
+# Update config to use espeak
+nano config/lex_channel_chief.json5
+
+# Change connector from "piper_tts" to "espeak":
+{
+  name: "speak",
+  llm_label: "speak",
+  connector: "espeak",  // Changed from piper_tts
+  config: {
+    voice: "en-us+f3",
+    speed: 150
+  }
+}
+
+# Restart service
+sudo systemctl restart lex_agent
 ```
 
 ---
