@@ -1,17 +1,110 @@
-# Lex Channel Chief Agent - Debian Package
+# Lex Channel Chief Agent - Installation Guide
 
-Complete `.deb` package for installing Lex agent on Jetson/Ubuntu ARM64.
+Complete installation guide for Lex agent on Jetson/Ubuntu ARM64.
 
-## Quick Install (Recommended)
+---
 
-Use the all-in-one installer script (no .deb building needed):
+## 🚀 Quick Install (Recommended) - COMPLETE SETUP
+
+### **Step 1: Install Hardware Configuration Service (REQUIRED FIRST)**
+
+This configures audio/video devices on every boot:
 
 ```bash
-# On Jetson
-bash install_lex_jetson.sh
+cd ~/roboai-espeak
+git pull origin main
+sudo bash scripts/installers/install_hardware_setup.sh
 ```
 
-## Build .deb Package
+**What this does:**
+- ✅ Auto-detects USB microphone and speaker
+- ✅ Creates `/etc/asound.conf` with correct defaults
+- ✅ Sets speaker volume to 100%, unmutes all channels
+- ✅ Configures microphone capture
+- ✅ Sets camera permissions
+- ✅ Runs on every boot BEFORE agent starts
+
+---
+
+### **Step 2: Install Lex Agent Service**
+
+```bash
+cd ~/roboai-espeak
+bash scripts/installers/install_lex_service_robust.sh
+```
+
+**What this does:**
+- ✅ Installs Lex as systemd service
+- ✅ Enables auto-start on boot
+- ✅ Comprehensive pre-start hardware checks
+- ✅ Validates Ollama + llama3.1:8b model
+- ✅ Checks Piper TTS and voice models
+- ✅ Starts Lex agent immediately
+
+---
+
+### **Step 3: Verify Installation**
+
+```bash
+# Check hardware setup
+sudo systemctl status roboai-hardware-setup
+cat /etc/roboai-devices.conf
+
+# Check Lex agent
+sudo systemctl status lex_agent
+
+# Watch live logs
+sudo journalctl -u lex_agent -f
+```
+
+---
+
+## 📋 Expected Output
+
+### Hardware Setup Service:
+```
+[HW-Setup] ✅ USB Microphone detected: card 1, device 0
+[HW-Setup] ✅ USB Speaker detected: card 0, device 0
+[HW-Setup] ✅ ALSA config written to /etc/asound.conf
+[HW-Setup] ✅ Speaker unmuted and volume set to 100%
+[HW-Setup] ✅ Camera permissions set: /dev/video0
+```
+
+### Lex Agent Service:
+```
+[LexPreStart] ✅ USB microphone detected
+[LexPreStart] ✅ USB speaker detected
+[LexPreStart] ✅ Camera detected
+[LexPreStart] ✅ Ollama is responsive
+[LexPreStart] ✅ Model llama3.1:8b is available
+[LexPreStart] ✅ Piper TTS is installed
+[LexPreStart] ✅ All critical checks passed!
+INFO - 🔊 Playing audio with command: aplay -D plughw:0,0
+INFO - Badge reader camera initialized
+```
+
+---
+
+## 🔧 Update Existing Installation
+
+```bash
+cd ~/roboai-espeak
+git pull origin main
+
+# Reinstall hardware service (if updated)
+sudo bash scripts/installers/install_hardware_setup.sh
+
+# Reinstall Lex service
+bash scripts/installers/install_lex_service_robust.sh
+
+# Restart services
+sudo systemctl restart roboai-hardware-setup
+sudo systemctl restart lex_agent
+```
+
+---
+
+## 📦 Alternative: Build .deb Package
 
 ### Step 1: Prepare Package (On Mac)
 
@@ -74,31 +167,126 @@ The package automatically:
 ## Service Management
 
 ```bash
-# Check status
-sudo systemctl status lex-agent
+# Check hardware setup service
+sudo systemctl status roboai-hardware-setup
+sudo journalctl -u roboai-hardware-setup
 
-# View logs
-sudo journalctl -u lex-agent -f
+# Check Lex agent service
+sudo systemctl status lex_agent
+sudo journalctl -u lex_agent -f
 
-# Stop/start/restart
-sudo systemctl stop lex-agent
-sudo systemctl start lex-agent
-sudo systemctl restart lex-agent
+# Restart services
+sudo systemctl restart roboai-hardware-setup  # Re-detect hardware
+sudo systemctl restart lex_agent              # Restart agent
+
+# Stop/start
+sudo systemctl stop lex_agent
+sudo systemctl start lex_agent
 
 # Disable auto-start
-sudo systemctl disable lex-agent
+sudo systemctl disable lex_agent
 ```
+
+---
+
+## 🔍 Troubleshooting
+
+### No Audio Output
+
+```bash
+# Check hardware setup ran
+sudo systemctl status roboai-hardware-setup
+cat /etc/roboai-devices.conf
+
+# Check ALSA config
+cat /etc/asound.conf
+
+# Test speaker directly
+aplay -D plughw:0,0 /usr/share/sounds/alsa/Front_Center.wav
+
+# Re-run hardware setup
+sudo systemctl restart roboai-hardware-setup
+```
+
+### Badge Reader Not Working
+
+```bash
+# Check camera permissions
+ls -l /dev/video*
+
+# Test camera
+python3 scripts/testing/test_camera_vision.py
+
+# Check logs for badge detection
+sudo journalctl -u lex_agent | grep -i badge
+```
+
+### Ollama Not Responding
+
+```bash
+# Check Ollama service
+sudo systemctl status ollama
+
+# Check model is downloaded
+ollama list | grep llama3.1:8b
+
+# Download model if missing
+ollama pull llama3.1:8b
+```
+
+---
 
 ## Manual Run (Without Service)
 
 ```bash
 # Stop service first
-sudo systemctl stop lex-agent
+sudo systemctl stop lex_agent
 
-# Run manually
-cd /opt/roboai-lex
+# Run manually for debugging
+cd ~/roboai-espeak
 uv run src/run.py lex_channel_chief
 ```
+
+---
+
+## ✅ Health Check Checklist
+
+Run these commands to verify everything is working:
+
+```bash
+# 1. Hardware setup service
+sudo systemctl is-active roboai-hardware-setup  # Should show: active
+
+# 2. Device configuration exists
+test -f /etc/roboai-devices.conf && echo "✅ Device config found" || echo "❌ Missing"
+
+# 3. ALSA config exists
+test -f /etc/asound.conf && echo "✅ ALSA config found" || echo "❌ Missing"
+
+# 4. Lex agent running
+sudo systemctl is-active lex_agent  # Should show: active
+
+# 5. Ollama responsive
+curl -s http://localhost:11434/api/tags | grep llama3.1 && echo "✅ Ollama OK" || echo "❌ Ollama issue"
+
+# 6. Camera accessible
+test -e /dev/video0 && echo "✅ Camera found" || echo "❌ No camera"
+
+# 7. Check recent logs for errors
+sudo journalctl -u lex_agent --since "5 minutes ago" | grep -i error
+```
+
+---
+
+## 🎯 Installation Order Summary
+
+**CRITICAL: Install in this order!**
+
+1. **Hardware Service** → Configures devices on boot
+2. **Lex Agent Service** → Depends on hardware service
+3. **Verify** → Check logs and status
+
+---
 
 ## Updating
 
