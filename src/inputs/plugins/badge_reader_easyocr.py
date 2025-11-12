@@ -75,6 +75,7 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
         # OCR configuration
         self.confidence_threshold = getattr(config, "confidence_threshold", 0.5)
         self.min_confidence = getattr(config, "min_confidence", 0.7)  # Minimum confidence for text detection
+        self.gpu = getattr(config, "gpu", True)  # Use GPU by default for faster OCR
 
         # State management
         self.cap = None
@@ -106,9 +107,10 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
         logging.info(f"BadgeReaderEasyOCR initializing: camera={self.camera_index}")
         
         # Initialize EasyOCR reader
-        logging.info("🔄 Loading EasyOCR model (one-time, takes ~10 seconds)...")
-        self.reader = easyocr.Reader(['en'], gpu=False, verbose=False)
-        logging.info("✅ EasyOCR model loaded")
+        gpu_status = "GPU" if self.gpu else "CPU"
+        logging.info(f"🔄 Loading EasyOCR model with {gpu_status} (one-time, ~10 seconds)...")
+        self.reader = easyocr.Reader(['en'], gpu=self.gpu, verbose=False)
+        logging.info(f"✅ EasyOCR model loaded ({gpu_status})")
         
         # Initialize camera
         self._initialize_camera()
