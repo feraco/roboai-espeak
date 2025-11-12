@@ -70,15 +70,19 @@ which piper
 piper --version
 # Should output version info
 
-# Download voice models (if not already present)
+# Voice models are already included in the repo!
 cd ~/roboai-espeak
-bash download_voices.sh
+ls -la piper_voices/
+# Should show multiple .onnx and .onnx.json files
 ```
 
-**Expected voices installed:**
-- `piper_voices/en_US-kristin-medium.onnx` (Kristin - female, friendly)
-- `piper_voices/en_US-amy-medium.onnx` (Amy - clear, professional)
-- `piper_voices/en_US-lessac-medium.onnx` (Lessac - expressive, warm)
+**Voice models already included in repo:**
+- `piper_voices/en_US-kristin-medium.onnx` (Kristin - female, friendly) ✅
+- `piper_voices/en_US-amy-medium.onnx` (Amy - clear, professional) ✅
+- `piper_voices/en_US-lessac-medium.onnx` (Lessac - expressive, warm) ✅
+- And more...
+
+**Note:** Voice models are stored in the repo at `~/roboai-espeak/piper_voices/` and will be pulled with `git pull`. No separate download needed!
 
 **If Piper installation fails:**
 ```bash
@@ -633,18 +637,17 @@ sudo chmod +x /usr/local/bin/piper
 which piper
 # Should output: /usr/local/bin/piper
 
-# Test it works
-echo "Hello, this is a test" | piper --model ~/roboai-espeak/piper_voices/en_US-kristin-medium.onnx --output_file /tmp/test.wav
+# Test it works (voices already included in repo)
+cd ~/roboai-espeak
+echo "Hello, this is a test" | piper --model piper_voices/en_US-kristin-medium.onnx --output_file /tmp/test.wav
 aplay /tmp/test.wav  # Should hear audio
 
-# Download voice models if missing
-cd ~/roboai-espeak
-bash download_voices.sh
+# Check available voices
+ls piper_voices/*.onnx
+# Should list multiple voice model files
 
-# Or manually download a voice:
-cd ~/roboai-espeak/piper_voices
-wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/kristin/medium/en_US-kristin-medium.onnx
-wget https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/kristin/medium/en_US-kristin-medium.onnx.json
+# If voices are missing (shouldn't happen), pull them:
+git pull origin main
 ```
 
 **Alternative: Use espeak instead of Piper**

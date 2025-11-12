@@ -148,33 +148,33 @@ check_ollama() {
     return 1
 }
 
-# Function: Check Piper TTS installation
+# Function: Check Piper TTS installation (OPTIONAL - not critical)
 check_piper() {
-    log_info "Checking Piper TTS..."
+    log_info "Checking Piper TTS (optional)..."
     
     if ! command -v piper &> /dev/null; then
-        log_error "Piper TTS not found in PATH"
-        return 1
+        log_info "Piper TTS not found in PATH (will use fallback TTS if needed)"
+        return 0  # Don't fail - just informational
     fi
     
     log_success "Piper TTS is installed"
     
-    # Check for Ryan voice model
+    # Check for voice models (informational only)
     local voice_found=false
-    for voice_dir in ~/piper_voices ./piper-voices ./piper_voices /usr/local/share/piper/voices ~/.local/share/piper/voices; do
-        if [ -f "$voice_dir/en_US-ryan-medium.onnx" ]; then
-            log_success "Found Ryan voice model in $voice_dir"
+    for voice_dir in ~/roboai-espeak/piper_voices ~/piper_voices ./piper-voices ./piper_voices; do
+        if [ -d "$voice_dir" ] && [ -n "$(ls -A $voice_dir/*.onnx 2>/dev/null)" ]; then
+            local voice_count=$(ls -1 $voice_dir/*.onnx 2>/dev/null | wc -l)
+            log_success "Found $voice_count voice model(s) in $voice_dir"
             voice_found=true
             break
         fi
     done
     
     if [ "$voice_found" = false ]; then
-        log_error "Ryan voice model (en_US-ryan-medium.onnx) not found"
-        return 1
+        log_info "No Piper voice models found (agent can still use espeak fallback)"
     fi
     
-    return 0
+    return 0  # Always succeed - Piper is optional
 }
 
 # Function: Check Python dependencies
@@ -209,7 +209,7 @@ main() {
     wait_for_speaker || log_error "Speaker check failed (continuing anyway)"
     wait_for_camera || log_info "Camera optional - continuing"
     check_ollama || { log_error "Ollama check FAILED - agent cannot start"; exit 1; }
-    check_piper || { log_error "Piper TTS check FAILED - agent cannot start"; exit 1; }
+    check_piper  # Optional check - won't fail startup
     check_python_deps || { log_error "Python dependencies check FAILED"; exit 1; }
     
     log_info "========================================"
