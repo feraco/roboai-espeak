@@ -16,13 +16,6 @@ This guide provides step-by-step instructions for installing and configuring the
 
 ## Complete Setup Process
 
-### Step 1: SSH into G1
-
-```bash
-ssh unitree@192.168.123.18  # (or your G1's IP address)
-# Password: 123
-```
-
 ---
 
 ### Step 2: Pull Latest Code
@@ -64,19 +57,31 @@ uv sync
 # Check if already installed
 dpkg -l | grep realsense
 
-# If NOT installed, install it:
+# If NOT installed, there are two methods:
+
+# METHOD 1: Install from Intel's repository (RECOMMENDED)
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
+sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
 sudo apt-get update
-sudo apt-get install -y python3-pyrealsense2 librealsense2-utils
+sudo apt-get install -y librealsense2-dkms librealsense2-utils librealsense2-dev python3-pyrealsense2
+
+# METHOD 2: Install via pip (if Method 1 fails)
+pip install pyrealsense2
 
 # Verify installation
 realsense-viewer  # Should open viewer window
 # Press Ctrl+C to exit
+
+# Alternative verification without GUI
+python3 -c "import pyrealsense2 as rs; print('✅ RealSense SDK installed:', rs.__version__)"
 ```
 
 **Troubleshooting:**
-- If `realsense-viewer` doesn't open, check USB connection
+- If package not found: Use Method 2 (pip install)
+- If `realsense-viewer` doesn't open: Check USB connection
 - Ensure camera is plugged into USB 3.0 port (blue port)
 - Try: `lsusb | grep Intel` to confirm camera detected
+- Check: `ls /dev/video*` to see video devices
 
 ---
 
@@ -513,6 +518,33 @@ lsusb | grep Intel
 
 ---
 
+### RealSense SDK Installation Issues
+
+**Symptoms:**
+- "Unable to locate package python3-pyrealsense2"
+- "E: Package 'python3-pyrealsense2' has no installation candidate"
+
+**Solutions:**
+```bash
+# Method 1: Add Intel's repository first
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
+sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
+sudo apt-get update
+sudo apt-get install -y librealsense2-dkms librealsense2-utils python3-pyrealsense2
+
+# Method 2: Install via pip instead
+pip install pyrealsense2
+
+# Method 3: Use UV package manager
+cd ~/roboai-espeak
+uv add pyrealsense2
+
+# Verify installation
+python3 -c "import pyrealsense2 as rs; print('✅ Installed:', rs.__version__)"
+```
+
+---
+
 ### EasyOCR Not Loading
 
 **Symptoms:**
@@ -882,7 +914,7 @@ FERACO
 **Documentation:**
 - `README.md` - Project overview
 - `documentation/guides/CONFIG_GUIDE.md` - Configuration guide
-- `.github/copilot-instructions.md` - Developer instructions
+
 
 ---
 
