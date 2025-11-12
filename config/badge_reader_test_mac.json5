@@ -1,0 +1,73 @@
+{
+  name: "badge_reader_test_mac",
+  api_key: null,
+  hertz: 2,
+  
+  system_prompt_base: "You are a friendly greeter robot testing badge detection. When you detect a name on a badge, greet that person warmly by name. Keep responses SHORT (1-2 sentences maximum).\n\nBADGE DETECTION BEHAVIOR:\n- When badge input shows 'BADGE DETECTED: Greet [Name]...', IMMEDIATELY greet that person\n- Say: 'Hi [Name], nice to meet you!' or similar warm greeting\n- Use their first name naturally\n- Be enthusiastic but brief\n\nJSON FORMAT: Always respond with: speak: {\"sentence\": \"your message\", \"language\": \"en\"}\nNever add extra fields.",
+  
+  system_governance: "First Law: Always greet people warmly when their badge is detected.\nSecond Law: Keep all responses SHORT and friendly.\nThird Law: Use proper JSON format for all responses.",
+  
+  system_prompt_examples: "Example interactions:\n\n1. Badge detected:\n   Badge: \"BADGE DETECTED: Greet John. Say: 'Hi John, my name is Lex' and introduce yourself.\"\n   speak: {\"sentence\": \"Hi John, nice to meet you! I'm your friendly greeter robot.\", \"language\": \"en\"}\n\n2. Badge detected (different name):\n   Badge: \"BADGE DETECTED: Greet Sarah. Say: 'Hi Sarah, my name is Lex' and introduce yourself.\"\n   speak: {\"sentence\": \"Hi Sarah, welcome! Great to meet you!\", \"language\": \"en\"}\n\n3. No badge detected:\n   Badge: \"No badge detected\"\n   (No response - wait for next badge detection)",
+  
+  agent_inputs: [
+    {
+      type: "BadgeReaderEasyOCR",  // Using EasyOCR - better for handwriting and varied text
+      config: {
+        camera_index: 0,           // Camera 0 (OpenCV reports only 0 available)
+        poll_interval: 3.0,        // Check every 3 seconds for faster testing
+        greeting_cooldown: 5.0,    // SHORT cooldown for testing - greet every 5 seconds
+        buffer_size: 5,
+        confidence_threshold: 0.5,
+        min_confidence: 0.7,       // Only use detections with 70%+ confidence
+        descriptor: "Badge Scanner - Hold badge up to camera"
+      }
+    }
+  ],
+  
+  cortex_llm: {
+    type: "OllamaLLM",
+    config: {
+      agent_name: "Badge Greeter Test",
+      base_url: "http://localhost:11434",
+      model: "llama3.1:8b",
+      temperature: 0.7,
+      timeout: 15,
+      history_length: 3,
+      repeat_penalty: 1.3,
+      frequency_penalty: 0.5,
+      max_tokens: 100,
+      num_predict: 100,
+      top_p: 0.9,
+      top_k: 40
+    }
+  },
+  
+  agent_actions: [
+    {
+      "name": "speak",
+      "llm_label": "speak",
+      "type": "Action",
+      "implementation": "passthrough",
+      "connector": "piper_tts",
+      "config": {
+        "model_en": "en_US-amy-medium",  // Using Amy voice for Mac
+        "output_dir": "audio_output",
+        "sample_rate": 22050,
+        "play_command": "afplay",  // Mac audio player
+        "working_dir": null,
+        "speaker_id": 0,
+        "length_scale": 0.95,  // Slightly faster speech
+        "noise_scale": 0.55,
+        "noise_w": 0.8,
+        "piper_command": "piper",
+        "clear_on_speak": false,
+        "mock": false,
+        "log_sentences": true,  // This will show what it would say
+        "emotion": "happy"
+      }
+    }
+  ],
+  
+  simulators: [],
+  backgrounds: []
+}

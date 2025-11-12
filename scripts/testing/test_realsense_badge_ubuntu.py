@@ -73,20 +73,76 @@ if not found_rgb:
     print("\n❌ No RGB stream found on this device")
     sys.exit(1)
 
-# Enable RGB stream (try 1920x1080 first, fallback to 640x480)
-try:
-    config.enable_stream(rs.stream.color, 1920, 1080, rs.format.bgr8, 30)
-    rgb_resolution = "1920x1080"
-except Exception:
-    print("⚠️  1920x1080 not available, trying 640x480...")
-    config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-    rgb_resolution = "640x480"
+# Check if any RealSense devices are connected
+ctx = rs.context()
+devices = ctx.query_devices()
+if len(devices) == 0:
+    print("\n❌ No RealSense devices found!")
+    print("\n🔍 Troubleshooting:")
+    print("   1. Check USB connection (use USB 3.0 port)")
+    print("   2. Check permissions: lsusb | grep Intel")
+    print("   3. Add udev rules:")
+    print("      wget https://raw.githubusercontent.com/IntelRealSense/librealsense/master/config/99-realsense-libusb.rules")
+    print("      sudo cp 99-realsense-libusb.rules /etc/udev/rules.d/")
+    print("      sudo udevadm control --reload-rules && sudo udevadm trigger")
+    print("   4. Reboot system")
+    print("   5. Try: sudo realsense-viewer (if installed)")
+    sys.exit(1)
+
+print(f"✅ Found {len(devices)} RealSense device(s)")
+
+# Enable RGB stream (try different resolutions)
+rgb_resolution = None
+resolutions_to_try = [
+    (1920, 1080, 30),
+    (1280, 720, 30),
+    (640, 480, 30),
+    (640, 480, 15),
+]
+
+for width, height, fps in resolutions_to_try:
+    try:
+        # Create fresh config for each attempt
+        config = rs.config()
+        config.enable_stream(rs.stream.color, width, height, rs.format.bgr8, fps)
+        rgb_resolution = f"{width}x{height}@{fps}fps"
+        print(f"✅ Will use: {rgb_resolution}")
+        break
+    except Exception as e:
+        print(f"⚠️  {width}x{height}@{fps}fps not available: {e}")
+        continue
+
+if not rgb_resolution:
+    print("\n❌ Could not find any compatible RGB stream resolution")
+    print("\n🔍 Try checking available streams with:")
+    print("   realsense-viewer")
+    sys.exit(1)
 
 print(f"\n🚀 Starting RGB stream at {rgb_resolution}...")
 try:
     pipeline.start(config)
+except RuntimeError as e:
+    error_msg = str(e)
+    print(f"❌ Failed to start pipeline: {error_msg}")
+    
+    if "couldn't resolve requests" in error_msg.lower():
+        print("\n🔍 'Couldn't resolve requests' usually means:")
+        print("   1. Camera is already in use by another application")
+        print("      - Close realsense-viewer if running")
+        print("      - Check: lsof | grep realsense")
+        print("      - Check: ps aux | grep realsense")
+        print("   2. Requested stream not supported by this camera")
+        print("      - Try: rs-enumerate-devices -c")
+        print("   3. USB connection issue")
+        print("      - Use USB 3.0 port (blue port)")
+        print("      - Try different cable")
+        print("   4. Firmware issue")
+        print("      - Update firmware with realsense-viewer")
+    
+    sys.exit(1)
 except Exception as e:
-    print(f"❌ Failed to start: {e}")
+    print(f"❌ Unexpected error: {e}")
+    print(f"   Error type: {type(e).__name__}")
     sys.exit(1)
 
 print("✅ RealSense RGB stream active!")

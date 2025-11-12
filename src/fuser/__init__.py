@@ -153,9 +153,10 @@ class Fuser:
         input_strings = [input.formatted_latest_buffer() for input in inputs]
         inputs_fused = " ".join([s for s in input_strings if s is not None])
         
-        # Check for voice vs vision input separately and extract language
+        # Check for voice vs vision vs badge input separately and extract language
         has_voice_input = False
         has_vision_input = False
+        has_badge_input = False
         detected_language = "en"  # Default to English
         
         for input_str in input_strings:
@@ -172,15 +173,18 @@ class Fuser:
                         pass  # Keep default language if parsing fails
             if input_str and ("Vision" in input_str or "Person Detection" in input_str) and input_str.strip():
                 has_vision_input = True
+            if input_str and ("Badge" in input_str or "BADGE DETECTED" in input_str) and input_str.strip():
+                has_badge_input = True
         
         if not inputs_fused.strip():
             logging.warning(f"Fuser: No input detected in buffers: {input_strings}")
             logging.info("=== INPUT STATUS ===\nNo input detected")
             inputs_fused = "<no input detected>"
         else:
-            logging.info("=== INPUT STATUS ===\nVoice: %s | Vision: %s | Language: %s", 
+            logging.info("=== INPUT STATUS ===\nVoice: %s | Vision: %s | Badge: %s | Language: %s", 
                         "Yes" if has_voice_input else "No",
                         "Yes" if has_vision_input else "No",
+                        "Yes" if has_badge_input else "No",
                         detected_language)
             logging.info("=== INPUTS ===\n%s", inputs_fused.strip())
 
@@ -310,6 +314,15 @@ Actions:"""
                 question_prompt = f"""Someone is speaking to you.
 
 If the input is unclear or incomplete, ask for clarification politely.
+
+{lang_instruction}
+
+Actions:"""
+        elif has_badge_input:
+            # Badge reader input - someone's badge was detected
+            question_prompt = f"""You have detected someone's badge with their name on it.
+
+Follow the instructions in the badge input carefully. If it says to greet someone, greet them warmly and naturally using their name.
 
 {lang_instruction}
 
