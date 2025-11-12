@@ -1,0 +1,15 @@
+[Unit]
+Description=RoboAI Hardware Configuration Service
+After=sound.target
+Before=lex_agent.service astra_agent.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup_hardware_defaults.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=roboai-hardware
+
+[Install]
+WantedBy=multi-user.target

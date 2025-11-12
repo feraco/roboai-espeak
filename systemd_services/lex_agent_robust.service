@@ -1,8 +1,8 @@
 [Unit]
 Description=Lex Channel Chief Agent - AI Sales Agent for Lexful (Robust)
 Documentation=https://github.com/feraco/roboai-espeak
-After=network-online.target ollama.service sound.target
-Wants=network-online.target ollama.service
+After=network-online.target ollama.service sound.target roboai-hardware-setup.service
+Wants=network-online.target ollama.service roboai-hardware-setup.service
 
 [Service]
 Type=simple

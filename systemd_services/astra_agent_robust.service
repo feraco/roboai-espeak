@@ -1,7 +1,7 @@
 [Unit]
 Description=Astra Vein Receptionist AI Agent with Hardware Detection
-After=network-online.target ollama.service sound.target
-Wants=network-online.target ollama.service
+After=network-online.target ollama.service sound.target roboai-hardware-setup.service
+Wants=network-online.target ollama.service roboai-hardware-setup.service
 
 [Service]
 Type=simple
