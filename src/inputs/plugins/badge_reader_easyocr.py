@@ -27,6 +27,14 @@ except ImportError as import_err:
     EASYOCR_AVAILABLE = False
     logging.warning(f"easyocr not available - badge reader will not work: {import_err}")
 
+# Try to import RealSense
+try:
+    import pyrealsense2 as rs
+    REALSENSE_AVAILABLE = True
+except ImportError:
+    REALSENSE_AVAILABLE = False
+    logging.info("pyrealsense2 not available - will use OpenCV for camera access")
+
 
 @dataclass
 class Message:
@@ -51,6 +59,12 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
         self.poll_interval = getattr(config, "poll_interval", 5.0)
         self.greeting_cooldown = getattr(config, "greeting_cooldown", 60.0)
 
+        # RealSense configuration
+        self.use_realsense = getattr(config, "use_realsense", False)
+        self.realsense_width = getattr(config, "realsense_width", 1920)
+        self.realsense_height = getattr(config, "realsense_height", 1080)
+        self.realsense_fps = getattr(config, "realsense_fps", 30)
+
         # Buffer configuration
         self.buffer_size = getattr(config, "buffer_size", 5)
         self.descriptor = getattr(config, "descriptor", "Badge Reader - EasyOCR")
@@ -61,6 +75,7 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
 
         # State management
         self.cap = None
+        self.pipeline = None  # For RealSense
         self.io_provider = IOProvider()
         self.messages: Deque[Message] = deque(maxlen=self.buffer_size)
         self.last_poll_time = 0.0
@@ -105,47 +120,117 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
             logging.error(f"   Try: python3 scripts/testing/list_cameras.py")
 
     def _initialize_camera(self):
-        """Initialize camera"""
+        """Initialize camera - RealSense or OpenCV"""
         try:
-            logging.info(f"🎥 Initializing badge reader camera {self.camera_index}...")
-            
-            # Release any existing capture first
-            if hasattr(self, 'cap') and self.cap is not None:
-                self.cap.release()
-                time.sleep(0.5)
-            
-            self.cap = cv2.VideoCapture(self.camera_index)
-            if not self.cap.isOpened():
-                logging.error(f"❌ Failed to open camera {self.camera_index}")
-                logging.error(f"   Try closing other apps using the camera")
-                logging.error(f"   Or check camera permissions in System Preferences")
-                self.cap = None
-                return
-
-            # Set camera properties
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-            self.cap.set(cv2.CAP_PROP_FPS, 15)
-            
-            # Test read to verify camera works
-            ret, test_frame = self.cap.read()
-            if not ret:
-                logging.error(f"❌ Camera {self.camera_index} opened but cannot read frames")
-                self.cap.release()
-                self.cap = None
-                return
-
-            logging.info(f"✅ Badge reader camera {self.camera_index} initialized and ready")
-            logging.info(f"   Resolution: {test_frame.shape[1]}x{test_frame.shape[0]}")
+            if self.use_realsense and REALSENSE_AVAILABLE:
+                self._initialize_realsense()
+            else:
+                if self.use_realsense and not REALSENSE_AVAILABLE:
+                    logging.warning("⚠️ RealSense requested but pyrealsense2 not available")
+                    logging.warning("   Install with: pip install pyrealsense2")
+                    logging.warning("   Falling back to OpenCV...")
+                self._initialize_opencv()
             
         except Exception as e:
             logging.error(f"❌ Failed to initialize badge reader camera: {e}")
             self.cap = None
+            self.pipeline = None
+
+    def _initialize_realsense(self):
+        """Initialize RealSense camera"""
+        import pyrealsense2 as rs
+        
+        logging.info(f"🎥 Initializing RealSense badge reader camera...")
+        
+        try:
+            # Create pipeline
+            self.pipeline = rs.pipeline()
+            config = rs.config()
+            
+            # Configure RGB stream
+            config.enable_stream(
+                rs.stream.color,
+                self.realsense_width,
+                self.realsense_height,
+                rs.format.bgr8,
+                self.realsense_fps
+            )
+            
+            # Start pipeline
+            logging.info(f"   Requesting RGB: {self.realsense_width}x{self.realsense_height} @ {self.realsense_fps}fps")
+            profile = self.pipeline.start(config)
+            
+            # Get stream info
+            color_profile = profile.get_stream(rs.stream.color)
+            intrinsics = color_profile.as_video_stream_profile().get_intrinsics()
+            logging.info(f"✅ RealSense RGB stream started: {intrinsics.width}x{intrinsics.height}")
+            
+            # Test read
+            frames = self.pipeline.wait_for_frames(timeout_ms=5000)
+            color_frame = frames.get_color_frame()
+            if not color_frame:
+                raise RuntimeError("Could not get color frame from RealSense")
+            
+            # Convert to numpy array
+            test_frame = np.asanyarray(color_frame.get_data())
+            logging.info(f"✅ RealSense badge reader initialized and ready")
+            logging.info(f"   Resolution: {test_frame.shape[1]}x{test_frame.shape[0]}")
+            
+        except Exception as e:
+            logging.error(f"❌ Failed to initialize RealSense camera: {e}")
+            logging.error(f"   Troubleshooting:")
+            logging.error(f"   1. Check USB connection (must be USB 3.0)")
+            logging.error(f"   2. Run: rs-enumerate-devices")
+            logging.error(f"   3. Try different USB port")
+            logging.error(f"   4. Check: lsusb | grep Intel")
+            if self.pipeline:
+                self.pipeline.stop()
+            self.pipeline = None
+            raise
+
+    def _initialize_opencv(self):
+        """Initialize OpenCV camera"""
+        logging.info(f"🎥 Initializing OpenCV badge reader camera {self.camera_index}...")
+        
+        # Release any existing capture first
+        if hasattr(self, 'cap') and self.cap is not None:
+            self.cap.release()
+            time.sleep(0.5)
+        
+        self.cap = cv2.VideoCapture(self.camera_index)
+        if not self.cap.isOpened():
+            logging.error(f"❌ Failed to open camera {self.camera_index}")
+            logging.error(f"   Try closing other apps using the camera")
+            logging.error(f"   Or check camera permissions in System Preferences")
+            logging.error(f"   Run: python3 scripts/testing/list_cameras.py")
+            self.cap = None
+            return
+
+        # Set camera properties
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.cap.set(cv2.CAP_PROP_FPS, 15)
+        
+        # Test read to verify camera works
+        ret, test_frame = self.cap.read()
+        if not ret:
+            logging.error(f"❌ Camera {self.camera_index} opened but cannot read frames")
+            self.cap.release()
+            self.cap = None
+            return
+
+        logging.info(f"✅ Badge reader camera {self.camera_index} initialized and ready")
+        logging.info(f"   Resolution: {test_frame.shape[1]}x{test_frame.shape[0]}")
 
     def __del__(self):
         """Release camera on cleanup"""
         if hasattr(self, 'cap') and self.cap:
             self.cap.release()
+        if hasattr(self, 'pipeline') and self.pipeline:
+            try:
+                self.pipeline.stop()
+            except:
+                pass
 
     async def _poll(self) -> Optional[cv2.typing.MatLike]:
         """Poll camera for new frames"""
@@ -159,18 +244,31 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
         
         self.last_poll_time = current_time
         
-        if not self.cap or not self.cap.isOpened():
-            logging.warning("Badge reader: Camera not available")
-            return None
-
         try:
-            ret, frame = self.cap.read()
-            if not ret:
-                logging.warning("Failed to read frame from badge reader camera")
+            if self.pipeline:
+                # RealSense path
+                frames = self.pipeline.wait_for_frames(timeout_ms=1000)
+                color_frame = frames.get_color_frame()
+                if not color_frame:
+                    logging.warning("Badge reader: No color frame from RealSense")
+                    return None
+                
+                frame = np.asanyarray(color_frame.get_data())
+                logging.info(f"📸 Badge reader captured RealSense frame: {frame.shape}")
+                return frame
+                
+            elif self.cap and self.cap.isOpened():
+                # OpenCV path
+                ret, frame = self.cap.read()
+                if not ret:
+                    logging.warning("Failed to read frame from badge reader camera")
+                    return None
+                
+                logging.info(f"📸 Badge reader captured OpenCV frame: {frame.shape}")
+                return frame
+            else:
+                logging.warning("Badge reader: No camera available (neither RealSense nor OpenCV)")
                 return None
-
-            logging.info(f"📸 Badge reader captured frame: {frame.shape}")
-            return frame
 
         except Exception as e:
             logging.error(f"Badge reader polling error: {e}")
