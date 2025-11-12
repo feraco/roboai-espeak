@@ -40,14 +40,37 @@ Fast-forward
 ### Step 3: Install Dependencies
 
 ```bash
-# Install EasyOCR for badge text recognition
+# Install EasyOCR via pip (automatically installs numpy and all dependencies system-wide)
+pip install easyocr
+
+# If permission error, use --user flag
+pip install --user easyocr
+
+# Also add to project environment
+cd ~/roboai-espeak
 uv add easyocr
 
 # Sync all project dependencies
 uv sync
+
+# Verify EasyOCR and dependencies installed correctly
+python3 -c "import easyocr; import numpy; import cv2; print('✅ EasyOCR:', easyocr.__version__); print('✅ NumPy:', numpy.__version__); print('✅ OpenCV:', cv2.__version__)"
 ```
 
-**Note:** EasyOCR will download required models on first use (~10 seconds load time).
+**What `pip install easyocr` installs system-wide:**
+- `numpy` - Numerical computing library
+- `opencv-python` - Computer vision library
+- `torch` / `torchvision` - Deep learning framework (for OCR model)
+- `Pillow` - Image processing
+- `scipy` - Scientific computing
+- And other dependencies
+
+**Note:** 
+- Installing via `pip install easyocr` automatically handles all dependencies including numpy
+- These are installed system-wide, making them available to both test scripts and the service
+- UV environment (`.venv`) will also have access to these packages
+- EasyOCR will download required models on first use (~10 seconds load time)
+- Models are cached for faster subsequent loads
 
 ---
 
@@ -150,7 +173,19 @@ sudo apt-get install -y librealsense2-utils
 ```bash
 cd ~/roboai-espeak
 
+# Ensure EasyOCR is installed (needed for test script)
+pip install easyocr  # If you get numpy errors, this fixes them
+
 # Test with simple auto-detect script
+python3 scripts/testing/test_realsense_badge_simple.py
+```
+
+**If you get numpy/import errors:**
+```bash
+# Install EasyOCR and dependencies via pip (fixes numpy issues)
+pip install easyocr numpy opencv-python
+
+# Then retry the test
 python3 scripts/testing/test_realsense_badge_simple.py
 ```
 
@@ -681,27 +716,105 @@ sudo systemctl restart lex_agent
 
 ---
 
-### EasyOCR Not Loading
+### EasyOCR / Numpy Installation Errors
 
 **Symptoms:**
+- "ModuleNotFoundError: No module named 'numpy'"
+- "ImportError: numpy.core.multiarray failed to import"
+- "ValueError: numpy.ndarray size changed, may indicate binary incompatibility"
+- "AttributeError: module 'numpy' has no attribute 'typeDict'"
 - "Failed to load EasyOCR"
+- Test scripts fail with numpy errors
+
+**Solutions:**
+
+**For "numpy has no attribute 'typeDict'" error (numpy too new):**
+```bash
+# Downgrade numpy to compatible version
+pip uninstall numpy -y
+pip install "numpy<2.0"
+
+# Reinstall EasyOCR
+pip install --force-reinstall easyocr
+
+# Verify it works
+python3 -c "import easyocr; import numpy; print('✅ EasyOCR:', easyocr.__version__, 'NumPy:', numpy.__version__)"
+```
+
+**For "numpy.ndarray size changed" error (version mismatch):**
+```bash
+# Uninstall and reinstall with compatible versions
+pip uninstall numpy -y
+pip uninstall easyocr -y
+
+# Install numpy 1.x (compatible with most packages)
+pip install "numpy<2.0"
+
+# Then install EasyOCR
+pip install easyocr
+
+# Verify it works
+python3 -c "import easyocr; import numpy; print('✅ EasyOCR:', easyocr.__version__, 'NumPy:', numpy.__version__)"
+```
+
+**For general ModuleNotFoundError:**
+```bash
+# RECOMMENDED: Install via pip (not just UV)
+pip install easyocr
+
+# If that doesn't work, install dependencies explicitly:
+pip install numpy opencv-python torch torchvision
+
+# Then install EasyOCR
+pip install easyocr
+
+# Verify installation
+python3 -c "import easyocr; import numpy; print('✅ EasyOCR and numpy working')"
+
+# Also add to project environment
+cd ~/roboai-espeak
+uv add easyocr
+
+# Restart service if running
+sudo systemctl restart lex_agent
+```
+
+**Why this happens:**
+- UV installs packages in isolated environment
+- Test scripts may use system Python which doesn't have the packages
+- Pip install makes packages available system-wide
+- "ndarray size changed" means EasyOCR was compiled against different numpy version
+
+---
+
+### EasyOCR GPU/CUDA Issues
+
+**Symptoms:**
 - "CUDA error" or "GPU not available"
+- "RuntimeError: CUDA out of memory"
 
 **Solutions:**
 ```bash
 # Check GPU status
 nvidia-smi  # Should show GPU info
 
-# Reinstall EasyOCR with GPU support
-cd ~/roboai-espeak
-uv remove easyocr
-uv add easyocr
+# Force CPU mode (slower but more stable)
+# Edit config to disable GPU:
+nano config/lex_channel_chief.json5
+
+# In badge reader config, add:
+{
+  type: "BadgeReaderEasyOCR",
+  config: {
+    camera_index: 3,
+    gpu: false,  // Add this line to use CPU
+    min_confidence: 0.75,
+    // ... rest of config
+  }
+}
 
 # Restart service
 sudo systemctl restart lex_agent
-
-# Check if CPU fallback works
-# Edit config and add: gpu: false to badge reader config
 ```
 
 ---
