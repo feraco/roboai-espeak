@@ -37,7 +37,8 @@
       config: {
         camera_index: 3,
         poll_interval: 8.0,
-        greeting_cooldown: 90.0,
+        greeting_cooldown: 90.0,       // Don't re-greet same person for 90 seconds
+        max_memory_time: 300.0,        // Forget person after 5 minutes (300s)
         min_confidence: 0.75,
         use_realsense: true,
         realsense_width: 1920,

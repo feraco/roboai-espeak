@@ -1129,6 +1129,7 @@ FERACO
     camera_index: 3,              // Camera device number (from list_cameras.py)
     poll_interval: 8.0,            // Seconds between badge checks (default: 8.0)
     greeting_cooldown: 90.0,       // Seconds before re-greeting same person (default: 90.0)
+    max_memory_time: 300.0,        // Forget person after N seconds (default: 300.0 = 5 min)
     min_confidence: 0.75,          // Minimum OCR confidence 0.0-1.0 (default: 0.75)
     use_realsense: true,           // Use RealSense SDK vs OpenCV (default: false)
     realsense_width: 1920,         // RGB stream width (default: 1920)
@@ -1140,6 +1141,20 @@ FERACO
   }
 }
 ```
+
+**How Memory Management Works:**
+
+- **greeting_cooldown** (90s): Don't re-greet same person if seen within this time
+- **max_memory_time** (300s): Completely forget person after this time
+- **Behavior**: After 5 minutes (300s), person is removed from memory and will be greeted again as if new
+- **Use Case**: At a conference, person walks by booth multiple times throughout the day
+  * First visit: "Hi Sarah, my name is Lex! How can I help?"
+  * 1 minute later: (no greeting - within cooldown)
+  * 6 minutes later: "Hi Sarah, my name is Lex! How can I help?" (forgotten, re-greeted)
+- **Adjust for your needs**:
+  * Short event (2 hours): `max_memory_time: 7200.0` (remember for whole event)
+  * All-day conference: `max_memory_time: 300.0` (5 min - re-greet if return)
+  * Multi-day event: Keep default 300s to re-greet each visit
 
 ---
 

@@ -58,6 +58,9 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
         self.camera_index = getattr(config, "camera_index", 0)
         self.poll_interval = getattr(config, "poll_interval", 5.0)
         self.greeting_cooldown = getattr(config, "greeting_cooldown", 60.0)
+        
+        # Memory management - forget people after this time
+        self.max_memory_time = getattr(config, "max_memory_time", 300.0)  # 5 minutes default
 
         # RealSense configuration
         self.use_realsense = getattr(config, "use_realsense", False)
@@ -274,12 +277,29 @@ class BadgeReaderEasyOCR(FuserInput[cv2.typing.MatLike]):
             logging.error(f"Badge reader polling error: {e}")
             return None
 
+    def _cleanup_old_detections(self):
+        """Remove people from memory who haven't been seen recently"""
+        current_time = time.time()
+        to_remove = []
+        
+        for name, last_seen in self.detected_people.items():
+            time_since = current_time - last_seen
+            if time_since > self.max_memory_time:
+                to_remove.append(name)
+        
+        for name in to_remove:
+            del self.detected_people[name]
+            logging.info(f"🧹 Forgot {name} (not seen for {self.max_memory_time:.0f}s)")
+
     async def _raw_to_text(self, raw_input: cv2.typing.MatLike) -> Optional[Message]:
         """Process video frame with EasyOCR to detect badges and extract names"""
         if raw_input is None:
             return None
 
         try:
+            # Clean up old detections periodically
+            self._cleanup_old_detections()
+            
             logging.info("🔍 Processing frame for badge detection with EasyOCR...")
             
             # Get center region (where badges typically are)
