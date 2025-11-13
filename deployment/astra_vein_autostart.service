@@ -1,6 +1,6 @@
 [Unit]
-Description=Astra Vein Receptionist Agent
-After=network.target sound.target
+Description=Astra Vein Receptionist Agent (Arm-Enabled)
+After=network.target sound.target pulseaudio.service
 Wants=network-online.target
 
 [Service]
@@ -8,8 +8,13 @@ Type=simple
 User=unitree
 WorkingDirectory=/home/unitree/roboai-feature-multiple-agent-configurations
 Environment="PATH=/home/unitree/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStartPre=/bin/sleep 10
-ExecStart=/home/unitree/.local/bin/uv run src/run.py astra_vein_receptionist
+
+# Run pre-start checks for device detection
+ExecStartPre=/bin/bash /home/unitree/roboai-feature-multiple-agent-configurations/deployment/astra_pre_start_checks.sh
+
+# Start agent with arm-enabled config
+ExecStart=/home/unitree/.local/bin/uv run src/run.py astra_vein_receptionist_arm
+
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal

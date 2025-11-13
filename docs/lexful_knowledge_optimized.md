@@ -55,8 +55,7 @@ and Lexful gives the answer instantly.
 
 
 ## WHAT TOOLS DOES LEXFUL CONNECT WITH  
-Datto, ConnectWise, Autotask, and Microsoft Three-Sixty-Five on day one —  
-with Halo and NinjaOne coming soon.  
+Datto, ConnectWise, Autotask, and Microsoft Three-Sixty-Five on day one —  with Halo and NinjaOne coming soon.  
 
 
 

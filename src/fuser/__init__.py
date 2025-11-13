@@ -43,6 +43,10 @@ class Fuser:
         
         # Pre-build static system context (only done once)
         self._system_context = self._build_system_context()
+        
+        # Track if we've greeted for proactive greeting feature
+        self._has_greeted = False
+        self._last_greeting_time = 0
     
     def _build_system_context(self) -> str:
         """
@@ -260,20 +264,64 @@ Use information from your KNOWLEDGE BASE when appropriate
 
 What do you see? Actions:"""
             else:
-                # Default receptionist behavior for agents without knowledge base
-                question_prompt = f"""No one is speaking to you right now, but you can see what's happening.
+                # Default receptionist behavior - check if proactive greeting is enabled
+                # Look for "PROACTIVE GREETING" in system_prompt_base
+                enable_proactive_greeting = "PROACTIVE GREETING" in getattr(self.config, "system_prompt_base", "")
+                
+                if enable_proactive_greeting:
+                    # Check if we've greeted recently (within 5 minutes)
+                    current_time = time.time()
+                    greeting_cooldown = 300  # 5 minutes
+                    
+                    if not self._has_greeted or (current_time - self._last_greeting_time) > greeting_cooldown:
+                        # First time or cooldown expired - allow greeting
+                        self._has_greeted = True
+                        self._last_greeting_time = current_time
+                        
+                        question_prompt = f"""Someone has been detected by vision, but they haven't spoken yet.
 
-As a curious and friendly receptionist:
-- Describe what you observe in the waiting room
-- Welcome anyone you see arriving
-- Comment on interesting details you notice
-- Offer help if someone looks like they need it
-- Keep it brief (1-2 sentences) and welcoming
+Offer a brief, welcoming greeting and suggest specific questions they can ask:
+- Keep it SHORT (1-2 sentences maximum)
+- Suggest concrete topics: office hours, locations, services, appointments
+- Be warm and professional
+- VARY your greeting - use different wording each time
+
+Example variations:
+- "Hello! I can help with office hours, locations, or our services. What would you like to know?"
+- "Welcome! Feel free to ask about appointments, our doctors, or treatments we offer."
+- "Hi there! I'm here to answer questions about Astra Vein. How can I assist you?"
 
 {lang_instruction}
 
-What do you see? Actions:"""
+Actions:"""
+                    else:
+                        # Already greeted - stay silent
+                        question_prompt = f"""You already greeted this person. They are still present but haven't spoken.
+
+STAY SILENT and wait for them to ask a question. Do not repeat your greeting.
+
+{lang_instruction}
+
+Actions: {{"function_calls": []}}"""
+                else:
+                    # Silent mode - no proactive greeting
+                    question_prompt = f"""Vision detects someone is present, but NO ONE HAS SPOKEN to you.
+
+CRITICAL RULE: DO NOT RESPOND AT ALL
+- Vision is CONTEXT-ONLY for when someone DOES speak
+- DO NOT greet unprompted
+- DO NOT say anything unless someone speaks to you first
+- WAIT SILENTLY for voice input
+
+Your job: REMAIN SILENT and wait for someone to speak.
+
+{lang_instruction}
+
+Actions: {{"function_calls": []}}"""
         elif has_voice_input:
+            # Voice input detected - reset greeting cooldown for next visitor
+            # (allows greeting again after 5 minutes of no conversation)
+            
             # Voice input - use agent-specific context
             # Redefine has_knowledge_base for voice input section
             has_knowledge_base = (hasattr(self.config, 'knowledge_file') and 

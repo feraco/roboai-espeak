@@ -75,10 +75,14 @@ class FaceEmotionCapture(FuserInput[cv2.typing.MatLike]):
 
         self.have_cam = check_webcam()
 
+        # Get camera index from config (default to 0)
+        self.camera_index = getattr(config, "camera_index", 0)
+
         # Start capturing video, if we have a webcam
         self.cap = None
         if self.have_cam:
-            self.cap = cv2.VideoCapture(0)
+            self.cap = cv2.VideoCapture(self.camera_index)
+            logging.info(f"FaceEmotionCapture using camera index {self.camera_index}")
 
         # Initialize emotion label
         self.emotion = ""

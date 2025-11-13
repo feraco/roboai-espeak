@@ -1,0 +1,83 @@
+{
+  name: "lex_audio_debug",
+  api_key: null,
+  hertz: 2,
+  knowledge_file: "docs/lexful_knowledge_optimized.md",
+  
+  // Minimal system prompts for testing
+  system_prompt_base: "You are Lex. Keep responses to 1 sentence maximum for audio testing.",
+  system_governance: "Be helpful and concise.",
+  system_prompt_examples: "User: 'test' → speak: {'sentence': 'Audio test successful.', 'language': 'en'}",
+  
+  agent_inputs: [
+    {
+      type: "LocalASRInput",
+      config: {
+        engine: "faster-whisper",
+        model_size: "tiny",
+        device: "cpu",
+        compute_type: "int8",
+        sample_rate: 48000,
+        chunk_duration: 2.0,
+        silence_threshold: 0.015,
+        min_audio_length: 0.5,
+        vad_filter: true,
+        beam_size: 1,
+        input_device: null,
+        amplify_audio: 3.0,
+        condition_on_previous_text: false,
+        always_transcribe: false,
+        rms_debug: true,              // 🔥 ENABLE RMS debugging - shows audio levels
+        detect_language: false,
+        supported_languages: ["en"],
+        default_language: "en"
+      }
+    }
+  ],
+
+  cortex_llm: {
+    type: "OllamaLLM",
+    config: {
+      agent_name: "Lex Audio Debug",
+      base_url: "http://localhost:11434",
+      model: "llama3.2:3b",
+      temperature: 0.7,
+      timeout: 30,
+      history_length: 2,            // Minimal for faster responses
+      repeat_penalty: 1.3,
+      frequency_penalty: 0.5,
+      max_tokens: 50,               // Very short for testing
+      num_predict: 50,
+      num_gpu: 0
+    }
+  },
+
+  agent_actions: [
+    {
+      name: "speak",
+      llm_label: "speak",
+      type: "Action",
+      implementation: "passthrough",
+      connector: "piper_tts",
+      config: {
+        model_en: "en_US-kristin-medium",
+        model_path_en: null,
+        output_dir: "audio_output",
+        sample_rate: 22050,
+        play_command: "aplay -D plughw:0,0",
+        working_dir: null,
+        speaker_id: 0,
+        length_scale: 0.90,
+        noise_scale: 0.55,
+        noise_w: 0.8,
+        piper_command: "piper",
+        clear_on_speak: false,
+        mock: false,
+        log_sentences: true           // 🔥 Log every sentence spoken
+      }
+    }
+  ],
+  
+  simulators: [],
+  backgrounds: []
+}

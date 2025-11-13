@@ -11,21 +11,21 @@
       type: "LocalASRInput",
       config: {
         engine: "faster-whisper",
-        model_size: "tiny",  // Already optimized - fastest model
+        model_size: "tiny",
         device: "cpu",
-        compute_type: "int8",  // Already optimized - fastest compute
-        sample_rate: 16000,  // SPEED OPTIMIZED: Reduced from 48000 to 16000 - faster processing
-        chunk_duration: 1.5,  // SPEED OPTIMIZED: Reduced from 2.0 to 1.5 - faster detection
-        silence_threshold: 0.02,  // SPEED OPTIMIZED: Slightly increased for faster cutoff
-        min_audio_length: 0.3,  // SPEED OPTIMIZED: Reduced from 0.5 to 0.3 - catch shorter speech
+        compute_type: "int8",
+        sample_rate: 48000,  // REVERTED: Back to 48000 - works better with USB mics
+        chunk_duration: 2.0,  // REVERTED: Back to 2.0 for more reliable detection
+        silence_threshold: 0.015,  // REVERTED: Back to 0.015 for better sensitivity
+        min_audio_length: 0.5,  // REVERTED: Back to 0.5 for complete words
         vad_filter: true,
-        beam_size: 1,  // Already optimized - fastest beam search
+        beam_size: 1,
         input_device: null,
         amplify_audio: 3.0,
-        condition_on_previous_text: false,  // Already optimized - no context dependency
+        condition_on_previous_text: false,
         always_transcribe: false,
         rms_debug: false,
-        detect_language: false,  // Already optimized - no language detection
+        detect_language: false,
         supported_languages: [
           "en"
         ],
@@ -55,15 +55,13 @@
       base_url: "http://localhost:11434",
       model: "llama3.1:8b",
       temperature: 0.7,
-      timeout: 12,  // SPEED OPTIMIZED: 12s (was 15s originally)
-      history_length: 4,  // SPEED OPTIMIZED: 4 messages (was 5) - balanced for context
+      timeout: 20,  // FIXED: Increased timeout - was too short causing no response
+      history_length: 5,  // REVERTED: Back to 5 for better context
       repeat_penalty: 1.3,
       frequency_penalty: 0.5,
-      max_tokens: 120,  // SPEED OPTIMIZED: 120 (was 100) - enough for greeting + intro
-      num_predict: 120,  // SPEED OPTIMIZED: 120 (was 100)
-      top_p: 0.9,
-      top_k: 40,
-      num_ctx: 2048  // SPEED OPTIMIZED: Smaller context window = faster processing
+      max_tokens: 150,  // REVERTED: Back to 150 for complete responses
+      num_predict: 150  // REVERTED: Back to 150
+      // REMOVED num_ctx - was causing issues, let Ollama use default
     }
   },
   agent_actions: [
