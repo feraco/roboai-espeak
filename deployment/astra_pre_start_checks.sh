@@ -26,7 +26,7 @@ done
 # Wait for USB microphone
 echo "⏳ Waiting for USB PnP Sound Device (microphone)..."
 for i in $(seq 1 $MAX_WAIT); do
-    if pactl list short sources 2>/dev/null | grep "USB_PnP_Sound_Device" > /dev/null; then
+    if pactl list short sources 2>/dev/null | grep "USB_PnP" > /dev/null; then
         echo "✅ USB microphone ready"
         break
     fi
@@ -40,7 +40,7 @@ done
 # Wait for USB speaker
 echo "⏳ Waiting for USB 2.0 Speaker..."
 for i in $(seq 1 $MAX_WAIT); do
-    if pactl list short sinks 2>/dev/null | grep "USB_2.0_Speaker" > /dev/null; then
+    if pactl list short sinks 2>/dev/null | grep "USB_2.0" > /dev/null; then
         echo "✅ USB speaker ready"
         break
     fi
@@ -53,8 +53,8 @@ done
 
 # Set PulseAudio defaults
 echo "🔧 Setting audio defaults..."
-MIC=$(pactl list short sources 2>/dev/null | grep "USB_PnP_Sound_Device" | awk '{print $2}' | head -n1)
-SPEAKER=$(pactl list short sinks 2>/dev/null | grep "USB_2.0_Speaker" | awk '{print $2}' | head -n1)
+MIC=$(pactl list short sources 2>/dev/null | grep "USB_PnP" | awk '{print $2}' | head -n1)
+SPEAKER=$(pactl list short sinks 2>/dev/null | grep "USB_2.0" | awk '{print $2}' | head -n1)
 
 if [ -n "$MIC" ]; then
     pactl set-default-source "$MIC"
