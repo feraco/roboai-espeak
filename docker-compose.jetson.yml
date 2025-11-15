@@ -1,0 +1,119 @@
+version: '3.8'
+
+services:
+  roboai-jetson:
+    build:
+      context: .
+      dockerfile: Dockerfile.jetson
+    image: roboai-espeak:jetson-orin-g1
+    container_name: roboai-jetson-agent
+    restart: unless-stopped
+    
+    # Use host network mode for easier device access
+    network_mode: host
+    
+    # NVIDIA runtime for GPU acceleration
+    runtime: nvidia
+    
+    # Environment variables
+    environment:
+      # Agent configuration
+      - AGENT_CONFIG=${AGENT_CONFIG:-astra_vein_receptionist}
+      
+      # Audio configuration
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - XDG_RUNTIME_DIR=/run/user/1000
+      - ALSA_CARD=0
+      
+      # Display configuration (for camera/GUI if needed)
+      - DISPLAY=${DISPLAY:-:0}
+      - XAUTHORITY=/tmp/.Xauthority
+      
+      # Ollama configuration
+      - OLLAMA_HOST=http://localhost:11434
+      
+      # NVIDIA/CUDA configuration
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - CUDA_VISIBLE_DEVICES=0
+      
+      # Optional: API keys (load from .env file)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY:-}
+    
+    # Volume mounts
+    volumes:
+      # Configuration files
+      - ./config:/app/roboai-espeak/config:rw
+      
+      # Piper voices (persistent)
+      - ./piper_voices:/app/piper_voices:ro
+      
+      # Audio output directory
+      - ./audio_output:/app/roboai-espeak/audio_output:rw
+      
+      # Ollama models (persistent, share with host)
+      - ${HOME}/.ollama:/root/.ollama:rw
+      
+      # Audio devices
+      - /run/user/1000/pulse:/run/user/1000/pulse:rw
+      - ${HOME}/.config/pulse:/root/.config/pulse:ro
+      
+      # X11 for camera access
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${HOME}/.Xauthority:/tmp/.Xauthority:ro
+      
+      # Shared data (optional)
+      - ${HOME}/shared_data:/app/shared_data:rw
+    
+    # Device access
+    devices:
+      # Audio devices
+      - /dev/snd:/dev/snd
+      
+      # Video devices (cameras)
+      - /dev/video0:/dev/video0
+      - /dev/video1:/dev/video1
+      
+      # GPU devices (for Jetson)
+      - /dev/nvhost-ctrl:/dev/nvhost-ctrl
+      - /dev/nvhost-ctrl-gpu:/dev/nvhost-ctrl-gpu
+      - /dev/nvhost-prof-gpu:/dev/nvhost-prof-gpu
+      - /dev/nvmap:/dev/nvmap
+      - /dev/nvhost-gpu:/dev/nvhost-gpu
+      - /dev/nvhost-as-gpu:/dev/nvhost-as-gpu
+    
+    # Capabilities
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+      - NET_ADMIN
+    
+    # Security options
+    security_opt:
+      - apparmor:unconfined
+    
+    # Group access
+    group_add:
+      - audio
+      - video
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    
+    # Resource limits (adjust based on your Jetson's RAM)
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+        reservations:
+          memory: 2G
+
+# Networks (using host mode, so this is minimal)
+networks:
+  default:
+    driver: bridge

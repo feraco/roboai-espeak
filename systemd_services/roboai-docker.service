@@ -1,0 +1,37 @@
+[Unit]
+Description=RoboAI Agent Docker Container (Jetson Orin g1)
+Documentation=https://github.com/feraco/roboai-espeak
+After=docker.service nvidia-docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/%u/roboai-espeak
+
+# Environment
+Environment="AGENT_CONFIG=astra_vein_receptionist"
+Environment="COMPOSE_FILE=docker-compose.jetson.yml"
+
+# Pre-start checks
+ExecStartPre=/bin/sleep 5
+ExecStartPre=/usr/bin/docker compose -f ${COMPOSE_FILE} down --remove-orphans
+
+# Start the container
+ExecStart=/usr/bin/docker compose -f ${COMPOSE_FILE} up -d
+
+# Stop the container
+ExecStop=/usr/bin/docker compose -f ${COMPOSE_FILE} down
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=roboai-docker
+
+[Install]
+WantedBy=multi-user.target

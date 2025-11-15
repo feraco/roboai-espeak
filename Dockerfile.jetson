@@ -1,0 +1,168 @@
+# Dockerfile for NVIDIA Jetson Orin g1
+# Optimized for ARM64 architecture with GPU acceleration
+
+# Use NVIDIA's JetPack base image (includes CUDA, cuDNN, TensorRT for Jetson)
+FROM nvcr.io/nvidia/l4t-pytorch:r35.2.1-pth2.0-py3
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build tools
+    git \
+    curl \
+    wget \
+    build-essential \
+    cmake \
+    pkg-config \
+    libssl-dev \
+    # Audio packages (ALSA + PulseAudio)
+    alsa-base \
+    alsa-utils \
+    libasound2 \
+    libasound2-dev \
+    libasound2-plugins \
+    alsa-topology-conf \
+    alsa-ucm-conf \
+    portaudio19-dev \
+    libportaudio2 \
+    libportaudiocpp0 \
+    libsndfile1 \
+    libsndfile1-dev \
+    pulseaudio \
+    pulseaudio-utils \
+    # Video packages
+    ffmpeg \
+    libavcodec-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libv4l-dev \
+    v4l-utils \
+    # Python dev
+    python3-pip \
+    python3-dev \
+    # Image processing
+    libjpeg-dev \
+    zlib1g-dev \
+    libpng-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install UV package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+# Configure ALSA for Docker environment
+RUN mkdir -p /etc/alsa && \
+    ln -snf /usr/share/alsa/alsa.conf.d /etc/alsa/conf.d && \
+    printf '%s\n' \
+      'pcm.!default { type pulse }' \
+      'ctl.!default { type pulse }' \
+      > /etc/asound.conf
+
+# Install Piper TTS (ARM64 version)
+RUN cd /tmp && \
+    wget -q https://github.com/rhasspy/piper/releases/download/v1.2.0/piper_arm64.tar.gz && \
+    tar -xzf piper_arm64.tar.gz && \
+    mv piper/piper /usr/local/bin/ && \
+    chmod +x /usr/local/bin/piper && \
+    rm -rf /tmp/piper*
+
+# Install Ollama for local LLM (ARM64 version)
+RUN curl -fsSL https://ollama.com/install.sh | sh
+
+# Create app directory
+WORKDIR /app/roboai-espeak
+
+# Copy project files
+COPY . .
+
+# Initialize git submodules (if any)
+RUN git submodule update --init --recursive || true
+
+# Create UV virtual environment and install dependencies
+RUN uv venv /app/roboai-espeak/.venv && \
+    . /app/roboai-espeak/.venv/bin/activate && \
+    uv pip install -r pyproject.toml
+
+# Download Piper voice models
+RUN mkdir -p /app/piper_voices && \
+    cd /app/piper_voices && \
+    wget -q https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-en-us-ryan-medium.tar.gz && \
+    tar -xzf voice-en-us-ryan-medium.tar.gz && \
+    rm voice-en-us-ryan-medium.tar.gz && \
+    # Download Spanish voice
+    wget -q https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-es-es-davefx-medium.tar.gz && \
+    tar -xzf voice-es-es-davefx-medium.tar.gz && \
+    rm voice-es-es-davefx-medium.tar.gz || true && \
+    # Download Russian voice
+    wget -q https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-ru-ru-dmitri-medium.tar.gz && \
+    tar -xzf voice-ru-ru-dmitri-medium.tar.gz && \
+    rm voice-ru-ru-dmitri-medium.tar.gz || true
+
+# Set environment variables
+ENV PATH="/app/roboai-espeak/.venv/bin:$PATH" \
+    VIRTUAL_ENV="/app/roboai-espeak/.venv" \
+    PYTHONPATH="/app/roboai-espeak/src:$PYTHONPATH" \
+    # Audio configuration
+    PULSE_SERVER=unix:/run/user/1000/pulse/native \
+    XDG_RUNTIME_DIR=/run/user/1000 \
+    # CUDA configuration for Jetson
+    CUDA_VISIBLE_DEVICES=0 \
+    OPENBLAS_CORETYPE=ARMV8
+
+# Create entrypoint script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
+# Start Ollama in background\n\
+echo "Starting Ollama service..."\n\
+ollama serve > /var/log/ollama.log 2>&1 &\n\
+OLLAMA_PID=$!\n\
+\n\
+# Wait for Ollama to be ready\n\
+echo "Waiting for Ollama to start..."\n\
+for i in {1..30}; do\n\
+    if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then\n\
+        echo "Ollama is ready"\n\
+        break\n\
+    fi\n\
+    if [ $i -eq 30 ]; then\n\
+        echo "ERROR: Ollama failed to start"\n\
+        exit 1\n\
+    fi\n\
+    sleep 1\n\
+done\n\
+\n\
+# Pull required models if not present\n\
+echo "Checking Ollama models..."\n\
+if ! ollama list | grep -q "llama3.1:8b"; then\n\
+    echo "Pulling llama3.1:8b model (this may take several minutes)..."\n\
+    ollama pull llama3.1:8b\n\
+fi\n\
+\n\
+# Start the application\n\
+echo "Starting RoboAI agent: ${AGENT_CONFIG:-astra_vein_receptionist}"\n\
+cd /app/roboai-espeak\n\
+exec uv run src/run.py "${AGENT_CONFIG:-astra_vein_receptionist}"\n\
+' > /entrypoint.sh && chmod +x /entrypoint.sh
+
+# Health check script
+RUN echo '#!/bin/bash\n\
+# Check if Ollama is running\n\
+curl -s http://localhost:11434/api/tags > /dev/null || exit 1\n\
+\n\
+# Check if Python process is running\n\
+pgrep -f "src/run.py" > /dev/null || exit 1\n\
+\n\
+exit 0\n\
+' > /healthcheck.sh && chmod +x /healthcheck.sh
+
+# Expose ports (if needed for future web interfaces)
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD /healthcheck.sh
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Default to astra_vein_receptionist agent (can be overridden)
+ENV AGENT_CONFIG=astra_vein_receptionist
