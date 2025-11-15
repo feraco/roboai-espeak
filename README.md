@@ -16,6 +16,7 @@ A modular AI runtime that lets you create interactive AI agents for robots and v
 
 | Platform | Documentation | Description |
 |----------|---------------|-------------|
+| **Jetson Orin g1 (Docker)** | [Docker Deployment](deployment/README_DOCKER.md) | 🐳 **NEW!** Docker containerized deployment with auto-start |
 | **Jetson Orin** | [Jetson Quick Fix](JETSON_QUICK_FIX.md) | One-page troubleshooting + fixes |
 | **Any Platform** | [Install & Run Guide](INSTALL_AND_RUN.md) | Complete setup + troubleshooting |
 | **Ubuntu G1 Robot** | [Ubuntu G1 Deployment](documentation/setup/UBUNTU_G1_DEPLOYMENT.md) | Complete guide with step-by-step troubleshooting |
@@ -24,7 +25,20 @@ A modular AI runtime that lets you create interactive AI agents for robots and v
 
 ## 🚀 Quick Start
 
-### Option 1: Ubuntu G1 Robot (Recommended for Production)
+### Option 1: Docker on Jetson Orin g1 (Recommended for Production)
+
+```bash
+# See complete Docker deployment guide:
+# deployment/README_DOCKER.md
+
+cd ~/roboai-espeak
+./deployment/docker_quickstart_jetson.sh
+
+# View logs
+docker logs -f roboai-jetson-agent
+```
+
+### Option 2: Ubuntu G1 Robot (Native Installation)
 
 ```bash
 # See complete guide with troubleshooting:
@@ -36,7 +50,7 @@ python3 documentation/troubleshooting/check_g1_hardware.py
 uv run src/run.py astra_vein_receptionist
 ```
 
-### Option 2: macOS Development
+### Option 3: macOS Development
 
 ```bash
 # Install dependencies
@@ -51,7 +65,7 @@ ollama pull llama3.1:8b
 uv run src/run.py local_agent
 ```
 
-### Option 3: Test Camera (Ubuntu)
+### Option 4: Test Camera (Ubuntu)
 
 ```bash
 # Test your camera before running the agent
@@ -155,6 +169,7 @@ See [LICENSE](LICENSE) for license information.
 ## 🌟 Features
 
 - ✅ **Local & Cloud** - Run fully offline or use cloud APIs
+- ✅ **Docker Support** - Containerized deployment for Jetson Orin g1 with GPU acceleration
 - ✅ **Multi-Platform** - macOS, Ubuntu, Jetson
 - ✅ **Speech Recognition** - Faster-Whisper, OpenAI Whisper
 - ✅ **Text-to-Speech** - Piper, ElevenLabs, Azure
@@ -162,6 +177,7 @@ See [LICENSE](LICENSE) for license information.
 - ✅ **Robot Control** - Unitree G1, arm gestures
 - ✅ **Auto-Detection** - Audio devices, sample rates, paths
 - ✅ **Production Ready** - Systemd services, auto-start, monitoring
+- ✅ **Container Health Checks** - Built-in monitoring and auto-restart
 
 ---
 
